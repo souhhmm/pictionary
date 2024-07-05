@@ -1,9 +1,32 @@
-export default function Canvas() {
-    return (
-        <>
-            <div className="flex justify-center mx-2 my-2">
-                <canvas width={800} height={400} className="border border-gray-300" />
-            </div>
-        </>
-    );
+import { useRef, useEffect } from "react";
+import Paper from "paper";
+import pencilDraw from "../tools/pencil";
+import eraserDraw from "../tools/eraser";
+
+export default function Canvas({ tool, color }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    Paper.setup(canvas);
+    if (tool === "pencil") {
+      pencilDraw(color);
+    } else if (tool == "eraser") {
+      eraserDraw();
+    }
+  }, [tool]);
+
+  useEffect(() => {
+    if (tool === "pencil") {
+      pencilDraw(color);
+    }
+  }, [color]);
+
+  return (
+    <>
+      <div className="flex justify-center mx-2 my-2">
+        <canvas ref={canvasRef} width={800} height={400} className="border border-gray-300" />
+      </div>
+    </>
+  );
 }
