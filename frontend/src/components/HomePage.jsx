@@ -9,16 +9,18 @@ export default function HomePage() {
     let result = "";
     for (let i = 0; i < 8; i++) {
       result += characters.charAt(Math.floor(Math.random() * characters.length));
-    }
+    } 
     setRoomID(result);
   };
 
   const copyToClipboard = () => {
-    navigator.clipboard.writeText(roomID);
-    setCopied(true);
-    setTimeout(() => {
-      setCopied(false);
-    }, 1000);
+    if (roomID) {
+      navigator.clipboard.writeText(roomID);
+      setCopied(true);
+      setTimeout(() => {
+        setCopied(false);
+      }, 1000);
+    }
   };
 
   return (
@@ -30,7 +32,10 @@ export default function HomePage() {
             <input type="text" className="mx-2 my-2 border-2" placeholder="Name"></input>
           </div>
           <div>
-            <input type="text" className="mx-2 border-2" placeholder="Room ID"></input>
+            <input type="text" className="mx-2 border-2" placeholder="Enter Room ID"></input>
+          </div>
+          <div className="my-2 text-center">
+            <button type="button" className="mx-2 my-2 border-2 w-32">Join</button>
           </div>
         </div>
         <div className="mx-2 my-2">
@@ -38,11 +43,21 @@ export default function HomePage() {
           <div>
             <input type="text" className="mx-2 my-2 border-2" placeholder="Name"></input>
           </div>
-          <div>
-            <input type="text" className="mx-2 border-2" placeholder="Generate Room ID" value={copied ? "Copied!" : roomID} onClick={copyToClipboard} readOnly></input>
-            <button className="border-2" onClick={generateRoomID}>
+          <div className="flex items-center">
+            <input
+              type="text"
+              className="mx-2 border-2"
+              placeholder="Generate Room ID"
+              value={copied ? "Copied!" : roomID}
+              onClick={copyToClipboard}
+              readOnly
+            ></input>
+            <button className="border-2 w-24" onClick={generateRoomID}>
               Generate
-            </button>
+            </button> 
+          </div>
+          <div className="my-2 text-center">
+            <button type="button" className="mx-2 my-2 border-2 w-32">Create</button>
           </div>
         </div>
       </div>
