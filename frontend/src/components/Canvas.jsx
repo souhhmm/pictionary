@@ -1,7 +1,8 @@
 import { useRef, useEffect } from "react";
 import Paper from "paper";
-import pencilDraw from "../tools/pencil";
-import eraserDraw from "../tools/eraser";
+import pencilDraw from "./tools/pencil";
+import eraserDraw from "./tools/eraser";
+import lineDraw from "./tools/line";
 
 export default function Canvas({ tool, color }) {
   const canvasRef = useRef(null);
@@ -9,18 +10,17 @@ export default function Canvas({ tool, color }) {
   useEffect(() => {
     const canvas = canvasRef.current;
     Paper.setup(canvas);
-    if (tool === "pencil") {
-      pencilDraw(color);
-    } else if (tool == "eraser") {
-      eraserDraw();
-    }
-  }, [tool]);
+  }, []);
 
   useEffect(() => {
     if (tool === "pencil") {
       pencilDraw(color);
+    } else if (tool == "eraser") {
+      eraserDraw();
+    } else if (tool == "line") {
+      lineDraw(color);
     }
-  }, [color]);
+  }, [color, tool]);
 
   return (
     <>
