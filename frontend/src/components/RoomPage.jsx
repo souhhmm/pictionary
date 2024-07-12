@@ -1,32 +1,71 @@
-import { useState, useRef } from "react";
+import { useState, useEffect } from "react";
 import Canvas from "./Canvas";
+import { useParams } from "react-router-dom";
 
-export default function RoomPage() {
+export default function RoomPage({ socket, user }) {
+  const { roomId } = useParams();
   const [tool, setTool] = useState("pencil");
   const [color, setColor] = useState("#000000");
+  const [users, setUsers] = useState([]);
+
+  useEffect(() => {
+    const roomData = {
+      name: user.name,
+      userId: user.userId,
+      roomId,
+      host: user.host,
+    };
+
+    socket.emit("userJoined", roomData);
+
+    socket.on("updateUsersOnline", (users) => {
+      setUsers(users);
+    });
+
+    return () => {
+      socket.emit("leaveRoom", roomId);
+    };
+  }, [roomId, socket, user]);
 
   return (
     <>
       <div className="flex mx-2 my-2">
         <label htmlFor="color">Color Picker</label>
         <input type="color" id="color" className="mx-2 border bg-white border-gray-200 p-1 cursor-pointer rounded-lg" value={color} onChange={(e) => setColor(e.target.value)} />
-        <span className="mx-2 text-primary">(Users Online: 0)</span>
+        <span className="mx-2 text-primary">(Users Online: {users.length})</span>
       </div>
       <div className="flex flex-col mx-2 my-2">
         <label htmlFor="pencil" className="flex items-center">
-          <input type="radio" name="tool" id="pencil" checked={tool == "pencil"} value="pencil" className="mr-2" onChange={(e) => setTool(e.target.value)} />
+          <input type="radio" name="tool" id="pencil" checked={tool === "pencil"} value="pencil" className="mr-2" onChange={(e) => setTool(e.target.value)} />
           Pencil
         </label>
         <label className="flex items-center">
-          <input type="radio" name="tool" id="line" checked={tool == "line"} value="line" className="mr-2" onChange={(e) => setTool(e.target.value)} />
+          <input type="radio" name="tool" id="line" checked={tool === "line"} value="line" className="mr-2" onChange={(e) => setTool(e.target.value)} />
           Line
         </label>
         <label className="flex items-center">
-        <input type="radio" name="tool" id="eraser" checked={tool == "eraser"} value="eraser" className="mr-2" onChange={(e) => setTool(e.target.value)} />
+          <input type="radio" name="tool" id="eraser" checked={tool === "eraser"} value="eraser" className="mr-2" onChange={(e) => setTool(e.target.value)} />
           Eraser
         </label>
       </div>
       <Canvas tool={tool} color={color} />
+
+      <div className="flex flex-col mx-2 my-2">
+        <h3 className="font-bold">Users in Room:</h3>
+        {users.map((user) => (
+          <div key={user.userId} className="border p-2 my-2">
+            <p>
+              <strong>Name:</strong> {user.name}
+            </p>
+            <p>
+              <strong>User ID:</strong> {user.userId}
+            </p>
+            <p>
+              <strong>Host:</strong> {user.host ? "Yes" : "No"}
+            </p>
+          </div>
+        ))}
+      </div>
     </>
   );
 }

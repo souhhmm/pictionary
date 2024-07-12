@@ -15,7 +15,18 @@ const connectionOptions = {
 const socket = io(server, connectionOptions);
 
 export default function App() {
-  const [user, setUser] = useState("");
+  const [user, setUser] = useState(null);
+  const [roomID, setRoomID] = useState("");
+
+  const generateId = () => {
+    const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+    let result = "";
+    for (let i = 0; i < 8; i++) {
+      result += characters.charAt(Math.floor(Math.random() * characters.length));
+    }
+    return result;
+  };
+
   useEffect(() => {
     socket.on("userIsJoined", (data) => {
       if (data.success) {
@@ -24,12 +35,12 @@ export default function App() {
         console.log("user not joined");
       }
     });
-  });
+  }, []);
 
   return (
     <Routes>
-      <Route path="/" element={<HomePage socket={socket} setUser={setUser} />}></Route>
-      <Route path="/:roomId" element={<RoomPage />}></Route>
+      <Route path="/" element={<HomePage socket={socket} setUser={setUser} setRoomID={setRoomID} uid={generateId} />} />
+      <Route path="/:roomId" element={<RoomPage socket={socket} user={user} roomID={roomID} />} />
     </Routes>
   );
 }

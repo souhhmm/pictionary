@@ -2,18 +2,68 @@ const express = require("express");
 const app = express();
 
 const server = require("http").createServer(app);
-const io = require("socket.io")(server);
+const io = require("socket.io")(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
+});
 
-//routes
+const rooms = {};
+
+// Routes
 app.get("/", (req, res) => {
   res.send("Server is running");
 });
 
 io.on("connection", (socket) => {
+  console.log("A user connected");
+
   socket.on("userJoined", (data) => {
     const { name, userId, roomId, host } = data;
     socket.join(roomId);
-    socket.emit("userIsJoined", { success: true });
+
+    if (!rooms[roomId]) {
+      rooms[roomId] = [];
+    }
+
+    rooms[roomId].push({ name, userId, host, socketId: socket.id });
+
+    // Log the user details to the terminal
+    console.log(`User joined: ${JSON.stringify(data)}`);
+    console.log(`Users in room ${roomId}: ${JSON.stringify(rooms[roomId])}`);
+
+    io.to(roomId).emit("updateUsersOnline", rooms[roomId]);
+  });
+
+  socket.on("leaveRoom", (roomId) => {
+    if (rooms[roomId]) {
+      rooms[roomId] = rooms[roomId].filter((user) => user.socketId !== socket.id);
+      if (rooms[roomId].length === 0) {
+        delete rooms[roomId];
+      } else {
+        io.to(roomId).emit("updateUsersOnline", rooms[roomId]);
+      }
+    }
+    socket.leave(roomId);
+  });
+
+  socket.on("disconnecting", () => {
+    const socketRooms = Object.keys(socket.rooms);
+    socketRooms.forEach((roomId) => {
+      if (roomId !== socket.id && rooms[roomId]) {
+        rooms[roomId] = rooms[roomId].filter((user) => user.socketId !== socket.id);
+        if (rooms[roomId].length === 0) {
+          delete rooms[roomId];
+        } else {
+          io.to(roomId).emit("updateUsersOnline", rooms[roomId]);
+        }
+      }
+    });
+  });
+
+  socket.on("disconnect", () => {
+    console.log("A user disconnected");
   });
 });
 
