@@ -7,6 +7,8 @@ export default function RoomPage({ socket, user }) {
   const [tool, setTool] = useState("pencil");
   const [color, setColor] = useState("#000000");
   const [users, setUsers] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [message, setMessage] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -23,6 +25,10 @@ export default function RoomPage({ socket, user }) {
       setUsers(updatedUsers);
     });
 
+    socket.on("receiveMessage", (message) => {
+      setMessages((prevMessages) => [...prevMessages, message]);
+    });
+
     return () => {
       socket.emit("leaveRoom", roomId);
       socket.disconnect();
@@ -34,19 +40,24 @@ export default function RoomPage({ socket, user }) {
     navigate("/");
   };
 
+  const handleSendMessage = (e) => {
+    e.preventDefault();
+    const newMessage = {
+      user: user.name,
+      text: message,
+      roomId,
+    };
+    socket.emit("sendMessage", newMessage);
+    setMessage("");
+  };
+
   return (
     <>
       <div className="flex mx-2 my-2">
         {user.host && (
           <>
             <label htmlFor="color">Color Picker</label>
-            <input
-              type="color"
-              id="color"
-              className="mx-2 border bg-white border-gray-200 p-1 cursor-pointer rounded-lg"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-            />
+            <input type="color" id="color" className="mx-2 border bg-white border-gray-200 p-1 cursor-pointer rounded-lg" value={color} onChange={(e) => setColor(e.target.value)} />
           </>
         )}
         <span className="mx-2 text-primary">(Users Online: {users.length})</span>
@@ -57,39 +68,15 @@ export default function RoomPage({ socket, user }) {
       {user.host && (
         <div className="flex flex-col mx-2 my-2">
           <label htmlFor="pencil" className="flex items-center">
-            <input
-              type="radio"
-              name="tool"
-              id="pencil"
-              checked={tool === "pencil"}
-              value="pencil"
-              className="mr-2"
-              onChange={(e) => setTool(e.target.value)}
-            />
+            <input type="radio" name="tool" id="pencil" checked={tool === "pencil"} value="pencil" className="mr-2" onChange={(e) => setTool(e.target.value)} />
             Pencil
           </label>
           <label className="flex items-center">
-            <input
-              type="radio"
-              name="tool"
-              id="line"
-              checked={tool === "line"}
-              value="line"
-              className="mr-2"
-              onChange={(e) => setTool(e.target.value)}
-            />
+            <input type="radio" name="tool" id="line" checked={tool === "line"} value="line" className="mr-2" onChange={(e) => setTool(e.target.value)} />
             Line
           </label>
           <label className="flex items-center">
-            <input
-              type="radio"
-              name="tool"
-              id="eraser"
-              checked={tool === "eraser"}
-              value="eraser"
-              className="mr-2"
-              onChange={(e) => setTool(e.target.value)}
-            />
+            <input type="radio" name="tool" id="eraser" checked={tool === "eraser"} value="eraser" className="mr-2" onChange={(e) => setTool(e.target.value)} />
             Eraser
           </label>
         </div>
@@ -110,6 +97,23 @@ export default function RoomPage({ socket, user }) {
             </p>
           </div>
         ))}
+      </div>
+      <div className="flex flex-col mx-2 my-2">
+        <h3 className="font-bold">Chat:</h3>
+        <div className="border p-2 my-2 h-64 overflow-y-scroll">
+          {messages.map((msg, index) => (
+            <div key={index} className="border p-2 my-1">
+              <strong>{msg.user}: </strong>
+              {msg.text}
+            </div>
+          ))}
+        </div>
+        <form onSubmit={handleSendMessage} className="flex">
+          <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} className="border p-2 flex-grow" placeholder="Type your message..." />
+          <button type="submit" className="border p-2 bg-blue-500 text-white">
+            Send
+          </button>
+        </form>
       </div>
     </>
   );

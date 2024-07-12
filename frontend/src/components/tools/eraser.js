@@ -1,9 +1,9 @@
 import Paper from "paper";
 
 export default function eraserDraw() {
-  const eraserSize = 50; // Size of the eraser
+  const eraserSize = 50; // size of the eraser
 
-  // Create an invisible eraser path for hit testing
+  // create an invisible eraser path for hit testing
   const eraserPath = new Paper.Path.Circle({
     center: [0, 0],
     radius: eraserSize / 2,
@@ -19,7 +19,7 @@ export default function eraserDraw() {
   };
 
   const erasePath = (path) => {
-    // Check for intersections and remove intersecting segments
+    // check for intersections and remove intersecting segments
     const intersections = path.getIntersections(eraserPath);
     intersections.forEach(intersection => {
       path.splitAt(intersection);
@@ -37,7 +37,7 @@ export default function eraserDraw() {
   const onErase = (event) => {
     eraserPath.position = event.point;
 
-    // Get items that intersect with the eraser path
+    // get items that intersect with the eraser path
     const hitResults = Paper.project.hitTestAll(event.point, hitOptions);
     hitResults.forEach(hitResult => {
       if (hitResult.item) {

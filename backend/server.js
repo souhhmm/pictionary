@@ -50,6 +50,11 @@ io.on("connection", (socket) => {
     socket.to(roomId).emit("canvasData", { imageData });
   });
 
+  socket.on("sendMessage", (message) => {
+    const { roomId } = message;
+    io.to(roomId).emit("receiveMessage", message);
+  });
+
   socket.on("disconnecting", () => {
     const socketRooms = Object.keys(socket.rooms);
     socketRooms.forEach((roomId) => {
