@@ -11,7 +11,6 @@ const io = require("socket.io")(server, {
 
 const rooms = {};
 
-// Routes
 app.get("/", (req, res) => {
   res.send("Server is running");
 });
@@ -29,7 +28,6 @@ io.on("connection", (socket) => {
 
     rooms[roomId].push({ name, userId, host, socketId: socket.id });
 
-    // Log the user details to the terminal
     console.log(`User joined: ${JSON.stringify(data)}`);
     console.log(`Users in room ${roomId}: ${JSON.stringify(rooms[roomId])}`);
 

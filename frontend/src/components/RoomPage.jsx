@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Canvas from "./Canvas";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 
 export default function RoomPage({ socket, user }) {
   const { roomId } = useParams();
   const [tool, setTool] = useState("pencil");
   const [color, setColor] = useState("#000000");
   const [users, setUsers] = useState([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const roomData = {
@@ -18,14 +19,20 @@ export default function RoomPage({ socket, user }) {
 
     socket.emit("userJoined", roomData);
 
-    socket.on("updateUsersOnline", (users) => {
-      setUsers(users);
+    socket.on("updateUsersOnline", (updatedUsers) => {
+      setUsers(updatedUsers);
     });
 
     return () => {
       socket.emit("leaveRoom", roomId);
+      socket.disconnect();
     };
   }, [roomId, socket, user]);
+
+  const handleLeaveRoom = () => {
+    socket.emit("leaveRoom", roomId);
+    navigate("/");
+  };
 
   return (
     <>
@@ -33,6 +40,9 @@ export default function RoomPage({ socket, user }) {
         <label htmlFor="color">Color Picker</label>
         <input type="color" id="color" className="mx-2 border bg-white border-gray-200 p-1 cursor-pointer rounded-lg" value={color} onChange={(e) => setColor(e.target.value)} />
         <span className="mx-2 text-primary">(Users Online: {users.length})</span>
+        <button className="ml-auto border-2 w-32" onClick={handleLeaveRoom}>
+          Leave Room
+        </button>
       </div>
       <div className="flex flex-col mx-2 my-2">
         <label htmlFor="pencil" className="flex items-center">
