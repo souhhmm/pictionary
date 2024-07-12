@@ -45,9 +45,9 @@ io.on("connection", (socket) => {
     socket.leave(roomId);
   });
 
-  socket.on("drawing", (data) => {
-    const { roomId, drawingData } = data;
-    socket.to(roomId).emit("drawing", drawingData);
+  socket.on("canvasData", (data) => {
+    const { roomId, imageData } = data;
+    socket.to(roomId).emit("canvasData", { imageData });
   });
 
   socket.on("disconnecting", () => {
