@@ -4,7 +4,7 @@ import pencilDraw from "./tools/pencil";
 import eraserDraw from "./tools/eraser";
 import lineDraw from "./tools/line";
 
-export default function Canvas({ tool, color }) {
+export default function Canvas({ tool, color, socket }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {

@@ -40,7 +40,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<HomePage socket={socket} setUser={setUser} uid={generateId} />} />
-      <Route path="/:roomId" element={<RoomPage socket={socket} user={user} roomID={roomID} />} />
+      <Route path="/:roomId" element={<RoomPage socket={socket} user={user} />} />
     </Routes>
   );
 }

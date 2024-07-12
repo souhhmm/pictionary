@@ -1,6 +1,5 @@
 const express = require("express");
 const app = express();
-
 const server = require("http").createServer(app);
 const io = require("socket.io")(server, {
   cors: {
@@ -44,6 +43,11 @@ io.on("connection", (socket) => {
       }
     }
     socket.leave(roomId);
+  });
+
+  socket.on("drawing", (data) => {
+    const { roomId, drawingData } = data;
+    socket.to(roomId).emit("drawing", drawingData);
   });
 
   socket.on("disconnecting", () => {

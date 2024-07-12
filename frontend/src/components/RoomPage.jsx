@@ -58,8 +58,7 @@ export default function RoomPage({ socket, user }) {
           Eraser
         </label>
       </div>
-      <Canvas tool={tool} color={color} />
-
+      <Canvas tool={tool} color={color} socket={socket} />
       <div className="flex flex-col mx-2 my-2">
         <h3 className="font-bold">Users in Room:</h3>
         {users.map((user) => (
