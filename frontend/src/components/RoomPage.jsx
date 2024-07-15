@@ -82,7 +82,7 @@ export default function RoomPage({ socket, user }) {
   return (
     <>
       <div className="flex mx-2 my-2">
-        {isHost && showStartButton && (
+        {isHost && showStartButton && users.length > 1 && (
           <button onClick={startRound} className="ml-2 border-2 w-32 bg-green-500 text-white">
             Start Round
           </button>
@@ -93,20 +93,50 @@ export default function RoomPage({ socket, user }) {
           Leave Room
         </button>
       </div>
-      {isHost && (
+      {isHost && !showStartButton && (
         <div className="flex flex-col mx-2 my-2">
           <label htmlFor="color">Color Picker</label>
-          <input type="color" id="color" className="mx-2 border bg-white border-gray-200 p-1 cursor-pointer rounded-lg" value={color} onChange={(e) => setColor(e.target.value)} />
+          <input
+            type="color"
+            id="color"
+            className="mx-2 border bg-white border-gray-200 p-1 cursor-pointer rounded-lg"
+            value={color}
+            onChange={(e) => setColor(e.target.value)}
+          />
           <label htmlFor="pencil" className="flex items-center">
-            <input type="radio" name="tool" id="pencil" checked={tool === "pencil"} value="pencil" className="mr-2" onChange={(e) => setTool(e.target.value)} />
+            <input
+              type="radio"
+              name="tool"
+              id="pencil"
+              checked={tool === "pencil"}
+              value="pencil"
+              className="mr-2"
+              onChange={(e) => setTool(e.target.value)}
+            />
             Pencil
           </label>
           <label className="flex items-center">
-            <input type="radio" name="tool" id="line" checked={tool === "line"} value="line" className="mr-2" onChange={(e) => setTool(e.target.value)} />
+            <input
+              type="radio"
+              name="tool"
+              id="line"
+              checked={tool === "line"}
+              value="line"
+              className="mr-2"
+              onChange={(e) => setTool(e.target.value)}
+            />
             Line
           </label>
           <label className="flex items-center">
-            <input type="radio" name="tool" id="eraser" checked={tool === "eraser"} value="eraser" className="mr-2" onChange={(e) => setTool(e.target.value)} />
+            <input
+              type="radio"
+              name="tool"
+              id="eraser"
+              checked={tool === "eraser"}
+              value="eraser"
+              className="mr-2"
+              onChange={(e) => setTool(e.target.value)}
+            />
             Eraser
           </label>
         </div>
@@ -139,7 +169,13 @@ export default function RoomPage({ socket, user }) {
           ))}
         </div>
         <form onSubmit={handleSendMessage} className="flex">
-          <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} className="border p-2 flex-grow" placeholder="Type your message..." />
+          <input
+            type="text"
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            className="border p-2 flex-grow"
+            placeholder="Type your message..."
+          />
           <button type="submit" className="border p-2 bg-blue-500 text-white">
             Send
           </button>
