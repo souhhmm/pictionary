@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Canvas from "./Canvas";
 import { useParams, useNavigate } from "react-router-dom";
 
@@ -9,7 +9,12 @@ export default function RoomPage({ socket, user }) {
   const [users, setUsers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
+  const [isHost, setIsHost] = useState(user.host);
+  const [timeLeft, setTimeLeft] = useState(60);
+  const [showStartButton, setShowStartButton] = useState(true); // State to control Start Round button visibility
   const navigate = useNavigate();
+  const canvasRef = useRef(null);
+  const timerRef = useRef(null);
 
   useEffect(() => {
     const roomData = {
@@ -29,11 +34,34 @@ export default function RoomPage({ socket, user }) {
       setMessages((prevMessages) => [...prevMessages, message]);
     });
 
+    socket.on("hostChanged", (newHost) => {
+      setIsHost(newHost.userId === user.userId); // Set host state based on received host information
+      resetRound(); // Reset round when host changes
+      alert(`Host changed to ${newHost.name}`);
+    });
+
+    socket.on("timerUpdate", (remainingTime) => {
+      setTimeLeft(remainingTime); // Update time left based on server's timer update
+    });
+
     return () => {
       socket.emit("leaveRoom", roomId);
       socket.disconnect();
     };
   }, [roomId, socket, user]);
+
+  const resetRound = () => {
+    clearInterval(timerRef.current);
+    setTimeLeft(60); // Reset time left to initial value
+    canvasRef.current.resetCanvas();
+    setTool("pencil");
+    setColor("#000000");
+  };
+
+  const startRound = () => {
+    socket.emit("startRound", roomId); // Emit startRound event to server
+    setShowStartButton(false); // Hide the Start Round button after pressing it
+  };
 
   const handleLeaveRoom = () => {
     socket.emit("leaveRoom", roomId);
@@ -54,19 +82,21 @@ export default function RoomPage({ socket, user }) {
   return (
     <>
       <div className="flex mx-2 my-2">
-        {user.host && (
-          <>
-            <label htmlFor="color">Color Picker</label>
-            <input type="color" id="color" className="mx-2 border bg-white border-gray-200 p-1 cursor-pointer rounded-lg" value={color} onChange={(e) => setColor(e.target.value)} />
-          </>
+        {isHost && showStartButton && (
+          <button onClick={startRound} className="ml-2 border-2 w-32 bg-green-500 text-white">
+            Start Round
+          </button>
         )}
         <span className="mx-2 text-primary">(Users Online: {users.length})</span>
+        <span className="mx-2 text-red-500">Time Left: {timeLeft}s</span>
         <button className="ml-auto border-2 w-32" onClick={handleLeaveRoom}>
           Leave Room
         </button>
       </div>
-      {user.host && (
+      {isHost && (
         <div className="flex flex-col mx-2 my-2">
+          <label htmlFor="color">Color Picker</label>
+          <input type="color" id="color" className="mx-2 border bg-white border-gray-200 p-1 cursor-pointer rounded-lg" value={color} onChange={(e) => setColor(e.target.value)} />
           <label htmlFor="pencil" className="flex items-center">
             <input type="radio" name="tool" id="pencil" checked={tool === "pencil"} value="pencil" className="mr-2" onChange={(e) => setTool(e.target.value)} />
             Pencil
@@ -81,7 +111,7 @@ export default function RoomPage({ socket, user }) {
           </label>
         </div>
       )}
-      <Canvas tool={tool} color={color} socket={socket} user={{ ...user, roomId }} />
+      <Canvas ref={canvasRef} tool={tool} color={color} socket={socket} user={{ ...user, roomId }} isHost={isHost} />
       <div className="flex flex-col mx-2 my-2">
         <h3 className="font-bold">Users in Room:</h3>
         {users.map((user) => (

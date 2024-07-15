@@ -14,6 +14,38 @@ app.get("/", (req, res) => {
   res.send("Server is running");
 });
 
+const startHostTimer = (roomId) => {
+  let remainingTime = 60;
+  const users = rooms[roomId];
+
+  const timerInterval = setInterval(() => {
+    remainingTime -= 1;
+    io.to(roomId).emit("timerUpdate", remainingTime);
+
+    if (remainingTime <= 0) {
+      clearInterval(timerInterval);
+
+      if (users && users.length > 1) {
+        const currentHostIndex = users.findIndex((user) => user.host);
+        let nextHostIndex = (currentHostIndex + 1) % users.length;
+        while (nextHostIndex === currentHostIndex) {
+          nextHostIndex = (nextHostIndex + 1) % users.length;
+        }
+
+        users[currentHostIndex].host = false;
+        users[nextHostIndex].host = true;
+
+        io.to(roomId).emit("updateUsersOnline", users);
+        // Emit hostChanged event to all users in the room
+        io.to(roomId).emit("hostChanged", users[nextHostIndex]);
+
+        // Reset the canvas
+        io.to(roomId).emit("resetCanvas");
+      }
+    }
+  }, 1000); // 1 second
+};
+
 io.on("connection", (socket) => {
   console.log("A user connected");
 
@@ -53,6 +85,10 @@ io.on("connection", (socket) => {
   socket.on("sendMessage", (message) => {
     const { roomId } = message;
     io.to(roomId).emit("receiveMessage", message);
+  });
+
+  socket.on("startRound", (roomId) => {
+    startHostTimer(roomId); // Start the host timer
   });
 
   socket.on("disconnecting", () => {
