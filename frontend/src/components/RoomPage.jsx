@@ -101,6 +101,7 @@ export default function RoomPage({ socket, user }) {
         )}
         <span className="mx-2 text-primary">(Users Online: {users.length})</span>
         {showTimer && <span className="mx-2 text-red-500">Time Left: {timeLeft}s</span>}
+        <span className="mx-2 text-gray-500">Room ID: {roomId}</span>
         <button className="ml-auto border-2 w-32" onClick={handleLeaveRoom}>
           Leave Room
         </button>
@@ -130,7 +131,7 @@ export default function RoomPage({ socket, user }) {
       <div className="flex flex-col mx-2 my-2">
         <h3 className="font-bold">Users in Room:</h3>
         {users.map((user) => (
-          <div key={user.userId} className="border p-2 my-2">
+          <div key={user.userId} className={`border p-2 my-2 ${user.host ? "bg-blue-100" : ""}`}>
             <p>
               <strong>Name:</strong> {user.name}
             </p>
