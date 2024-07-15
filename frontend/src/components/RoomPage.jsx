@@ -10,8 +10,9 @@ export default function RoomPage({ socket, user }) {
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
   const [isHost, setIsHost] = useState(user.host);
-  const [timeLeft, setTimeLeft] = useState(60);
+  const [timeLeft, setTimeLeft] = useState(10);
   const [showStartButton, setShowStartButton] = useState(true); // State to control Start Round button visibility
+  const [showTimer, setShowTimer] = useState(false); // State to control timer visibility
   const navigate = useNavigate();
   const canvasRef = useRef(null);
   const timerRef = useRef(null);
@@ -37,11 +38,20 @@ export default function RoomPage({ socket, user }) {
     socket.on("hostChanged", (newHost) => {
       setIsHost(newHost.userId === user.userId); // Set host state based on received host information
       resetRound(); // Reset round when host changes
+      setShowTimer(false); // Hide timer when host changes
       alert(`Host changed to ${newHost.name}`);
     });
 
     socket.on("timerUpdate", (remainingTime) => {
       setTimeLeft(remainingTime); // Update time left based on server's timer update
+    });
+
+    socket.on("startTimer", () => {
+      setShowTimer(true); // Show the timer for all users
+    });
+
+    socket.on("stopTimer", () => {
+      setShowTimer(false); // Hide the timer for all users
     });
 
     return () => {
@@ -52,10 +62,12 @@ export default function RoomPage({ socket, user }) {
 
   const resetRound = () => {
     clearInterval(timerRef.current);
-    setTimeLeft(60); // Reset time left to initial value
+    setTimeLeft(10); // Reset time left to initial value
     canvasRef.current.resetCanvas();
     setTool("pencil");
     setColor("#000000");
+    setShowTimer(false); // Hide timer when round is reset
+    setShowStartButton(true); // Show Start Round button again
   };
 
   const startRound = () => {
@@ -88,7 +100,7 @@ export default function RoomPage({ socket, user }) {
           </button>
         )}
         <span className="mx-2 text-primary">(Users Online: {users.length})</span>
-        <span className="mx-2 text-red-500">Time Left: {timeLeft}s</span>
+        {showTimer && <span className="mx-2 text-red-500">Time Left: {timeLeft}s</span>}
         <button className="ml-auto border-2 w-32" onClick={handleLeaveRoom}>
           Leave Room
         </button>
