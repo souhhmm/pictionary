@@ -4,7 +4,7 @@ import RoomPage from "./components/RoomPage";
 import { Route, Routes } from "react-router-dom";
 import io from "socket.io-client";
 
-const server = "http://localhost:5000";
+const server = import.meta.env.VITE_SERVER_URL;
 const connectionOptions = {
   "force new connection": true,
   reconnectionAttempts: "Infinity",
