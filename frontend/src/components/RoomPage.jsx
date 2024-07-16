@@ -103,6 +103,7 @@ export default function RoomPage({ socket, user }) {
       user: user.name,
       text: message,
       roomId,
+      highlight: message.toLowerCase().includes(chosenWord.toLowerCase()),
     };
     socket.emit("sendMessage", newMessage);
     setMessage("");
@@ -194,15 +195,18 @@ export default function RoomPage({ socket, user }) {
         <h3 className="font-bold">Chat:</h3>
         <div className="border p-2 my-2 h-64 overflow-y-scroll">
           {messages.map((msg, index) => (
-            <div key={index} className="border p-2 my-1">
+            <div key={index} className="border p-2 my-1" style={{ backgroundColor: msg.highlight ? "#a3e9a4" : "transparent" }}>
               <strong>{msg.user}: </strong>
               {msg.text}
             </div>
           ))}
         </div>
         <form onSubmit={handleSendMessage} className="flex">
-          <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} className="border p-2 flex-grow" placeholder="Type your message..." />
-          <button type="submit" className="border p-2 bg-blue-500 text-white">
+          <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} className={`border p-2 flex-grow ${isHost ? "cursor-not-allowed" : ""}`} placeholder="Type your message..." disabled={isHost} />
+          <button
+            type="submit"
+            className={`border p-2 bg-blue-500 text-white ${isHost ? "cursor-not-allowed opacity-50" : ""}`} // Apply styles for disabled state
+            disabled={isHost}>
             Send
           </button>
         </form>
