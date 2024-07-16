@@ -18,6 +18,7 @@ export default function RoomPage({ socket, user }) {
   const [randomWords, setRandomWords] = useState([]);
   const [chosenWord, setChosenWord] = useState("");
   const [userGuessed, setUserGuessed] = useState(false);
+  const [scores, setScores] = useState({});
   const navigate = useNavigate();
   const canvasRef = useRef(null);
   const timerRef = useRef(null);
@@ -31,6 +32,7 @@ export default function RoomPage({ socket, user }) {
     };
 
     socket.emit("userJoined", roomData);
+    initializeScores(users);
 
     socket.on("updateUsersOnline", (updatedUsers) => {
       setUsers(updatedUsers);
@@ -68,6 +70,14 @@ export default function RoomPage({ socket, user }) {
 
     socket.on("chosenWord", (word) => {
       setChosenWord(word);
+      setUserGuessed(false);
+    });
+
+    socket.on("correctGuess", (guesserId) => {
+      if (guessUserId === user.userId) {
+        setUserGuessed(true);
+        updateScore(user.userId);
+      }
     });
 
     return () => {
@@ -75,6 +85,24 @@ export default function RoomPage({ socket, user }) {
       socket.disconnect();
     };
   }, [roomId, socket, user]);
+
+  const initializeScores = (users) => {
+    const initialScores = {};
+    users.forEach((user) => {
+      initialScores[user.userId] = scores[user.userId] || 0;
+    });
+    setScores((prevScores) => ({
+      ...prevScores,
+      ...initialScores,
+    }));
+  };
+
+  const updateScore = (userId) => {
+    setScores((prevScores) => ({
+      ...prevScores,
+      [userId]: (prevScores[userId] || 0) + 10,
+    }));
+  };
 
   const resetRound = () => {
     clearInterval(timerRef.current);
@@ -86,6 +114,7 @@ export default function RoomPage({ socket, user }) {
     setShowStartButton(true);
     setRandomWords([]);
     setChosenWord("");
+    setUserGuessed(false);
   };
 
   const startRound = () => {
@@ -100,7 +129,7 @@ export default function RoomPage({ socket, user }) {
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    const isCorrectGuess = message.toLowerCase() === chosenWord.toLowerCase();
+    const isCorrectGuess = message.trim().toLowerCase() === chosenWord.trim().toLowerCase();
     const newMessage = {
       user: user.name,
       text: isCorrectGuess ? "Correctly guessed!" : message,
@@ -112,6 +141,7 @@ export default function RoomPage({ socket, user }) {
 
     if (isCorrectGuess) {
       setUserGuessed(true);
+      updateScore(user.userId);
     }
   };
 
@@ -147,16 +177,7 @@ export default function RoomPage({ socket, user }) {
       )}
       {chosenWord && (
         <div className="flex mx-2 my-2">
-          <span className="text-xl">
-            Chosen Word:{" "}
-            {isHost
-              ? chosenWord
-              : chosenWord.split("").map((char, index) => (
-                  <span key={index}>
-                    {char === " " ? " " : "_ "} {/* Add a space after each underscore */}
-                  </span>
-                ))}
-          </span>
+          <span className="text-xl">Chosen Word: {isHost ? chosenWord : chosenWord.split("").map((char, index) => <span key={index}>{char === " " ? " " : "_ "}</span>)}</span>
         </div>
       )}
       {isHost && !showStartButton && (
@@ -194,6 +215,9 @@ export default function RoomPage({ socket, user }) {
             <p>
               <strong>Host:</strong> {user.host ? "Yes" : "No"}
             </p>
+            <p>
+              <strong>Score:</strong> {scores[user.userId] || 0}
+            </p>
           </div>
         ))}
       </div>
@@ -208,8 +232,8 @@ export default function RoomPage({ socket, user }) {
           ))}
         </div>
         <form onSubmit={handleSendMessage} className="flex">
-          <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} className={`border p-2 flex-grow ${isHost && !showStartButton || userGuessed ? "cursor-not-allowed" : ""}`} placeholder="Type your message..." disabled={isHost && !showStartButton || userGuessed} />
-          <button type="submit" className={`border p-2 bg-blue-500 text-white ${isHost && !showStartButton || userGuessed ? "cursor-not-allowed opacity-50" : ""}`} disabled={isHost && !showStartButton || userGuessed}>
+          <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} className={`border p-2 flex-grow ${(isHost && !showStartButton) || userGuessed ? "cursor-not-allowed" : ""}`} placeholder="Type your message..." disabled={(isHost && !showStartButton) || userGuessed} />
+          <button type="submit" className={`border p-2 bg-blue-500 text-white ${(isHost && !showStartButton) || userGuessed ? "cursor-not-allowed opacity-50" : ""}`} disabled={(isHost && !showStartButton) || userGuessed}>
             Send
           </button>
         </form>
