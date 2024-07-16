@@ -140,7 +140,16 @@ export default function RoomPage({ socket, user }) {
       )}
       {chosenWord && (
         <div className="flex mx-2 my-2">
-          <span className="text-xl font-bold">Chosen Word: {chosenWord}</span>
+          <span className="text-xl">
+            Chosen Word:{" "}
+            {isHost
+              ? chosenWord
+              : chosenWord.split("").map((char, index) => (
+                  <span key={index}>
+                    {char === " " ? " " : "_ "} {/* Add a space after each underscore */}
+                  </span>
+                ))}
+          </span>
         </div>
       )}
       {isHost && !showStartButton && (
