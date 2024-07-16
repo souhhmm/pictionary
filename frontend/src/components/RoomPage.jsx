@@ -10,7 +10,7 @@ export default function RoomPage({ socket, user }) {
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
   const [isHost, setIsHost] = useState(user.host);
-  const [timeLeft, setTimeLeft] = useState(10);
+  const [timeLeft, setTimeLeft] = useState(20);
   const [showStartButton, setShowStartButton] = useState(true); // State to control Start Round button visibility
   const [showTimer, setShowTimer] = useState(false); // State to control timer visibility
   const navigate = useNavigate();
@@ -62,7 +62,7 @@ export default function RoomPage({ socket, user }) {
 
   const resetRound = () => {
     clearInterval(timerRef.current);
-    setTimeLeft(10); // Reset time left to initial value
+    setTimeLeft(20); // Reset time left to initial value
     canvasRef.current.resetCanvas();
     setTool("pencil");
     setColor("#000000");

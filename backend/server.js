@@ -15,7 +15,7 @@ app.get("/", (req, res) => {
 });
 
 const startHostTimer = (roomId) => {
-  let remainingTime = 10;
+  let remainingTime = 20;
   const users = rooms[roomId];
 
   const timerInterval = setInterval(() => {
@@ -36,17 +36,12 @@ const startHostTimer = (roomId) => {
         users[nextHostIndex].host = true;
 
         io.to(roomId).emit("updateUsersOnline", users);
-        // Emit hostChanged event to all users in the room
         io.to(roomId).emit("hostChanged", users[nextHostIndex]);
-        // Stop the timer for all users
         io.to(roomId).emit("stopTimer");
-        // Reset the canvas
         io.to(roomId).emit("resetCanvas");
       }
     }
-  }, 1000); // 1 second
-
-  // Emit event to start the timer for all users
+  }, 1000);
   io.to(roomId).emit("startTimer");
 };
 
@@ -92,7 +87,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("startRound", (roomId) => {
-    startHostTimer(roomId); // Start the host timer
+    startHostTimer(roomId);
   });
 
   socket.on("disconnecting", () => {
