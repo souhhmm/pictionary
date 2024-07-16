@@ -99,11 +99,12 @@ export default function RoomPage({ socket, user }) {
 
   const handleSendMessage = (e) => {
     e.preventDefault();
+    const isCorrectGuess = message.toLowerCase() === chosenWord.toLowerCase();
     const newMessage = {
       user: user.name,
-      text: message,
+      text: isCorrectGuess ? "Correctly guessed!" : message,
       roomId,
-      highlight: message.toLowerCase().includes(chosenWord.toLowerCase()),
+      highlight: isCorrectGuess,
     };
     socket.emit("sendMessage", newMessage);
     setMessage("");
