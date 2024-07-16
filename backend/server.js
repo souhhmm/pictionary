@@ -103,6 +103,24 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("chosenWord", word);
   });
 
+  const updateAndBroadcastScores = (roomId, userId, points) => {
+    const users = rooms[roomId];
+    if (users) {
+      const user = users.find((user) => user.userId === userId);
+      if (user) {
+        user.score = (user.score || 0) + points; // Update the score
+        io.to(roomId).emit(
+          "updateScores",
+          users.map(({ userId, score }) => ({ userId, score }))
+        ); // Broadcast updated scores
+      }
+    }
+  };
+
+  socket.on("correctGuess", ({ roomId, userId }) => {
+    updateAndBroadcastScores(roomId, userId, 10); // Update score by 10 points for correct guess
+  });
+
   socket.on("disconnecting", () => {
     const socketRooms = Object.keys(socket.rooms);
     socketRooms.forEach((roomId) => {

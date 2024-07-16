@@ -30,7 +30,6 @@ export default function RoomPage({ socket, user }) {
       roomId,
       host: user.host,
     };
-
     socket.emit("userJoined", roomData);
     initializeScores(users);
 
@@ -45,11 +44,6 @@ export default function RoomPage({ socket, user }) {
     socket.on("hostChanged", (newHost) => {
       setIsHost(newHost.userId === user.userId);
       resetRound();
-      setShowTimer(false);
-      setChosenWord(null);
-      setRandomWords([]);
-      setShowStartButton(true);
-      alert(`Host changed to ${newHost.name}`);
     });
 
     socket.on("timerUpdate", (remainingTime) => {
@@ -74,10 +68,18 @@ export default function RoomPage({ socket, user }) {
     });
 
     socket.on("correctGuess", (guesserId) => {
-      if (guessUserId === user.userId) {
+      if (guesserId === user.userId) {
         setUserGuessed(true);
-        updateScore(user.userId);
+        updateScore(user.userId, 10); // Assuming 10 points for a correct guess
       }
+    });
+
+    socket.on("updateScores", (updatedScores) => {
+      const newScores = {};
+      updatedScores.forEach(({ userId, score }) => {
+        newScores[userId] = score;
+      });
+      setScores(newScores);
     });
 
     return () => {
@@ -97,10 +99,10 @@ export default function RoomPage({ socket, user }) {
     }));
   };
 
-  const updateScore = (userId) => {
+  const updateScore = (userId, points) => {
     setScores((prevScores) => ({
       ...prevScores,
-      [userId]: (prevScores[userId] || 0) + 10,
+      [userId]: (prevScores[userId] || 0) + points,
     }));
   };
 
@@ -130,19 +132,26 @@ export default function RoomPage({ socket, user }) {
   const handleSendMessage = (e) => {
     e.preventDefault();
     const isCorrectGuess = message.trim().toLowerCase() === chosenWord.trim().toLowerCase();
-    const newMessage = {
-      user: user.name,
-      text: isCorrectGuess ? "Correctly guessed!" : message,
-      roomId,
-      highlight: isCorrectGuess,
-    };
-    socket.emit("sendMessage", newMessage);
-    setMessage("");
-
     if (isCorrectGuess) {
       setUserGuessed(true);
-      updateScore(user.userId);
+      socket.emit("correctGuess", { roomId, userId: user.userId });
+      const newMessage = {
+        user: user.name,
+        text: "Correctly guessed!",
+        roomId,
+        highlight: isCorrectGuess,
+      };
+      socket.emit("sendMessage", newMessage);
+    } else {
+      const newMessage = {
+        user: user.name,
+        text: isCorrectGuess ? "Correctly guessed!" : message,
+        roomId,
+        highlight: isCorrectGuess,
+      };
+      socket.emit("sendMessage", newMessage);
     }
+    setMessage("");
   };
 
   const handleWordClick = (word) => {
