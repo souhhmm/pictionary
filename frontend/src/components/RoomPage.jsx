@@ -3,6 +3,7 @@ import Canvas from "./Canvas";
 import { useParams, useNavigate } from "react-router-dom";
 
 const wordsList = ["Compact", "Magnificent", "Timesaving", "Dark", "Malevolence", "Tree", "Damage", "Man", "Termination", "Dangerous", "Mascot", "Underestimate"];
+const ROUND_TIME = 20;
 
 export default function RoomPage({ socket, user }) {
   const { roomId } = useParams();
@@ -12,7 +13,7 @@ export default function RoomPage({ socket, user }) {
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
   const [isHost, setIsHost] = useState(user.host);
-  const [timeLeft, setTimeLeft] = useState(20);
+  const [timeLeft, setTimeLeft] = useState(ROUND_TIME);
   const [showStartButton, setShowStartButton] = useState(true);
   const [showTimer, setShowTimer] = useState(false);
   const [randomWords, setRandomWords] = useState([]);
@@ -44,6 +45,7 @@ export default function RoomPage({ socket, user }) {
     socket.on("hostChanged", (newHost) => {
       setIsHost(newHost.userId === user.userId);
       resetRound();
+      alert(`Host changed to ${newHost.name}`);
     });
 
     socket.on("timerUpdate", (remainingTime) => {
@@ -108,7 +110,7 @@ export default function RoomPage({ socket, user }) {
 
   const resetRound = () => {
     clearInterval(timerRef.current);
-    setTimeLeft(20);
+    setTimeLeft(ROUND_TIME);
     canvasRef.current.resetCanvas();
     setTool("pencil");
     setColor("#000000");

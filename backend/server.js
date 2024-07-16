@@ -11,13 +11,15 @@ const io = require("socket.io")(server, {
 const rooms = {};
 
 const wordsList = ["Compact", "Magnificent", "Timesaving", "Dark", "Malevolence", "Tree", "Damage", "Man", "Termination", "Dangerous", "Mascot", "Underestimate"];
+const ROUND_TIME = 20;
+const SCORE = 100;
 
 app.get("/", (req, res) => {
   res.send("Server is running");
 });
 
 const startHostTimer = (roomId) => {
-  let remainingTime = 20;
+  let remainingTime = ROUND_TIME;
   const users = rooms[roomId];
 
   const timerInterval = setInterval(() => {
@@ -118,7 +120,7 @@ io.on("connection", (socket) => {
   };
 
   socket.on("correctGuess", ({ roomId, userId }) => {
-    updateAndBroadcastScores(roomId, userId, 10);
+    updateAndBroadcastScores(roomId, userId, SCORE);
   });
 
   socket.on("disconnecting", () => {
