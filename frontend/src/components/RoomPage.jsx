@@ -17,6 +17,7 @@ export default function RoomPage({ socket, user }) {
   const [showTimer, setShowTimer] = useState(false);
   const [randomWords, setRandomWords] = useState([]);
   const [chosenWord, setChosenWord] = useState("");
+  const [userGuessed, setUserGuessed] = useState(false);
   const navigate = useNavigate();
   const canvasRef = useRef(null);
   const timerRef = useRef(null);
@@ -108,6 +109,10 @@ export default function RoomPage({ socket, user }) {
     };
     socket.emit("sendMessage", newMessage);
     setMessage("");
+
+    if (isCorrectGuess) {
+      setUserGuessed(true);
+    }
   };
 
   const handleWordClick = (word) => {
@@ -203,11 +208,8 @@ export default function RoomPage({ socket, user }) {
           ))}
         </div>
         <form onSubmit={handleSendMessage} className="flex">
-          <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} className={`border p-2 flex-grow ${isHost ? "cursor-not-allowed" : ""}`} placeholder="Type your message..." disabled={isHost} />
-          <button
-            type="submit"
-            className={`border p-2 bg-blue-500 text-white ${isHost ? "cursor-not-allowed opacity-50" : ""}`} // Apply styles for disabled state
-            disabled={isHost}>
+          <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} className={`border p-2 flex-grow ${isHost && !showStartButton || userGuessed ? "cursor-not-allowed" : ""}`} placeholder="Type your message..." disabled={isHost && !showStartButton || userGuessed} />
+          <button type="submit" className={`border p-2 bg-blue-500 text-white ${isHost && !showStartButton || userGuessed ? "cursor-not-allowed opacity-50" : ""}`} disabled={isHost && !showStartButton || userGuessed}>
             Send
           </button>
         </form>
