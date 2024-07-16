@@ -108,17 +108,17 @@ io.on("connection", (socket) => {
     if (users) {
       const user = users.find((user) => user.userId === userId);
       if (user) {
-        user.score = (user.score || 0) + points; // Update the score
+        user.score = (user.score || 0) + points;
         io.to(roomId).emit(
           "updateScores",
           users.map(({ userId, score }) => ({ userId, score }))
-        ); // Broadcast updated scores
+        );
       }
     }
   };
 
   socket.on("correctGuess", ({ roomId, userId }) => {
-    updateAndBroadcastScores(roomId, userId, 10); // Update score by 10 points for correct guess
+    updateAndBroadcastScores(roomId, userId, 10);
   });
 
   socket.on("disconnecting", () => {

@@ -70,7 +70,7 @@ export default function RoomPage({ socket, user }) {
     socket.on("correctGuess", (guesserId) => {
       if (guesserId === user.userId) {
         setUserGuessed(true);
-        updateScore(user.userId, 10); // Assuming 10 points for a correct guess
+        updateScore(user.userId, 10);
       }
     });
 
