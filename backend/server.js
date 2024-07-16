@@ -10,6 +10,8 @@ const io = require("socket.io")(server, {
 
 const rooms = {};
 
+const wordsList = ["Compact", "Magnificent", "Timesaving", "Dark", "Malevolence", "Tree", "Damage", "Man", "Termination", "Dangerous", "Mascot", "Underestimate"];
+
 app.get("/", (req, res) => {
   res.send("Server is running");
 });
@@ -43,6 +45,11 @@ const startHostTimer = (roomId) => {
     }
   }, 1000);
   io.to(roomId).emit("startTimer");
+};
+
+const getRandomWords = () => {
+  const shuffled = wordsList.sort(() => 0.5 - Math.random());
+  return shuffled.slice(0, 3);
 };
 
 io.on("connection", (socket) => {
@@ -87,7 +94,13 @@ io.on("connection", (socket) => {
   });
 
   socket.on("startRound", (roomId) => {
+    const randomWords = getRandomWords();
+    io.to(roomId).emit("randomWords", randomWords);
     startHostTimer(roomId);
+  });
+
+  socket.on("wordChosen", ({ roomId, word }) => {
+    io.to(roomId).emit("chosenWord", word);
   });
 
   socket.on("disconnecting", () => {

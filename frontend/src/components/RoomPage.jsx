@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from "react";
 import Canvas from "./Canvas";
 import { useParams, useNavigate } from "react-router-dom";
 
+const wordsList = ["Compact", "Magnificent", "Timesaving", "Dark", "Malevolence", "Tree", "Damage", "Man", "Termination", "Dangerous", "Mascot", "Underestimate"];
+
 export default function RoomPage({ socket, user }) {
   const { roomId } = useParams();
   const [tool, setTool] = useState("pencil");
@@ -11,8 +13,10 @@ export default function RoomPage({ socket, user }) {
   const [message, setMessage] = useState("");
   const [isHost, setIsHost] = useState(user.host);
   const [timeLeft, setTimeLeft] = useState(20);
-  const [showStartButton, setShowStartButton] = useState(true); // State to control Start Round button visibility
-  const [showTimer, setShowTimer] = useState(false); // State to control timer visibility
+  const [showStartButton, setShowStartButton] = useState(true);
+  const [showTimer, setShowTimer] = useState(false);
+  const [randomWords, setRandomWords] = useState([]);
+  const [chosenWord, setChosenWord] = useState("");
   const navigate = useNavigate();
   const canvasRef = useRef(null);
   const timerRef = useRef(null);
@@ -36,22 +40,33 @@ export default function RoomPage({ socket, user }) {
     });
 
     socket.on("hostChanged", (newHost) => {
-      setIsHost(newHost.userId === user.userId); // Set host state based on received host information
-      resetRound(); // Reset round when host changes
-      setShowTimer(false); // Hide timer when host changes
+      setIsHost(newHost.userId === user.userId);
+      resetRound();
+      setShowTimer(false);
+      setChosenWord(null);
+      setRandomWords([]);
+      setShowStartButton(true);
       alert(`Host changed to ${newHost.name}`);
     });
 
     socket.on("timerUpdate", (remainingTime) => {
-      setTimeLeft(remainingTime); // Update time left based on server's timer update
+      setTimeLeft(remainingTime);
     });
 
     socket.on("startTimer", () => {
-      setShowTimer(true); // Show the timer for all users
+      setShowTimer(true);
     });
 
     socket.on("stopTimer", () => {
-      setShowTimer(false); // Hide the timer for all users
+      setShowTimer(false);
+    });
+
+    socket.on("randomWords", (words) => {
+      setRandomWords(words);
+    });
+
+    socket.on("chosenWord", (word) => {
+      setChosenWord(word);
     });
 
     return () => {
@@ -62,17 +77,19 @@ export default function RoomPage({ socket, user }) {
 
   const resetRound = () => {
     clearInterval(timerRef.current);
-    setTimeLeft(20); // Reset time left to initial value
+    setTimeLeft(20);
     canvasRef.current.resetCanvas();
     setTool("pencil");
     setColor("#000000");
-    setShowTimer(false); // Hide timer when round is reset
-    setShowStartButton(true); // Show Start Round button again
+    setShowTimer(false);
+    setShowStartButton(true);
+    setRandomWords([]);
+    setChosenWord("");
   };
 
   const startRound = () => {
-    socket.emit("startRound", roomId); // Emit startRound event to server
-    setShowStartButton(false); // Hide the Start Round button after pressing it
+    socket.emit("startRound", roomId);
+    setShowStartButton(false);
   };
 
   const handleLeaveRoom = () => {
@@ -91,6 +108,12 @@ export default function RoomPage({ socket, user }) {
     setMessage("");
   };
 
+  const handleWordClick = (word) => {
+    setChosenWord(word);
+    setRandomWords([]);
+    socket.emit("wordChosen", { roomId, word });
+  };
+
   return (
     <>
       <div className="flex mx-2 my-2">
@@ -106,6 +129,20 @@ export default function RoomPage({ socket, user }) {
           Leave Room
         </button>
       </div>
+      {isHost && !showStartButton && randomWords.length > 0 && (
+        <div className="flex mx-2 my-2">
+          {randomWords.map((word, index) => (
+            <button key={index} onClick={() => handleWordClick(word)} className="mx-2 border-2 p-2 bg-blue-500 text-white">
+              {word}
+            </button>
+          ))}
+        </div>
+      )}
+      {chosenWord && (
+        <div className="flex mx-2 my-2">
+          <span className="text-xl font-bold">Chosen Word: {chosenWord}</span>
+        </div>
+      )}
       {isHost && !showStartButton && (
         <div className="flex flex-col mx-2 my-2">
           <label htmlFor="color">Color Picker</label>
