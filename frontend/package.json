@@ -11,14 +11,21 @@
   },
   "dependencies": {
     "@nextui-org/react": "^2.4.2",
+    "@radix-ui/react-label": "^2.1.0",
+    "@radix-ui/react-slot": "^1.1.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
     "dotenv": "^16.4.5",
     "framer-motion": "^11.2.12",
+    "lucide-react": "^0.408.0",
     "paper": "^0.12.17",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^6.24.1",
     "roughjs": "^4.6.6",
-    "socket.io-client": "^4.7.5"
+    "socket.io-client": "^4.7.5",
+    "tailwind-merge": "^2.4.0",
+    "tailwindcss-animate": "^1.0.7"
   },
   "devDependencies": {
     "@types/react": "^18.3.3",

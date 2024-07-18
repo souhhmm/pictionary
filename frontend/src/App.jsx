@@ -41,9 +41,8 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<HomePage />} />
+      <Route path="/" element={<CreateRoomForm socket={socket} setUser={setUser} uid={generateId} />} />
       <Route path="/:roomId" element={<RoomPage socket={socket} user={user} />} />
-      <Route path="/create" element={<CreateRoomForm socket={socket} setUser={setUser} uid={generateId} />} />
       <Route path="/join" element={<JoinRoomForm socket={socket} setUser={setUser} uid={generateId} />} />
     </Routes>
   );
