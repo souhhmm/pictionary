@@ -8,13 +8,13 @@ import { Link } from "react-router-dom";
 
 export default function CreateRoomForm({ socket, setUser, uid }) {
   const [name, setName] = useState("");
-  const [roomID, setRoomID] = useState(uid());
+  const [roomId, setroomId] = useState(uid());
   const [copied, setCopied] = useState(false);
   const navigate = useNavigate();
 
   const copyToClipboard = () => {
-    if (roomID) {
-      navigator.clipboard.writeText(roomID);
+    if (roomId) {
+      navigator.clipboard.writeText(roomId);
       setCopied(true);
       setTimeout(() => {
         setCopied(false);
@@ -24,22 +24,22 @@ export default function CreateRoomForm({ socket, setUser, uid }) {
 
   const createRoom = (e) => {
     e.preventDefault();
-    if (name && roomID) {
+    if (name && roomId) {
       const roomData = {
         name,
-        roomID,
+        roomId,
         userId: uid(),
         host: true,
       };
       setUser(roomData);
-      navigate(`/${roomID}`);
+      navigate(`/${roomId}`);
     } else {
       console.log("Name and Room ID are required to create a room.");
     }
   };
 
   const generateNewId = () => {
-    setRoomID(uid());
+    setroomId(uid());
   };
 
   return (
@@ -47,7 +47,7 @@ export default function CreateRoomForm({ socket, setUser, uid }) {
       <Card className="w-full max-w-md mx-auto">
         <CardHeader>
           <CardTitle>Create Room</CardTitle>
-          <p className="text-gray-500 text-sm mt-2">Enter your name and generate a Room ID to create a game.</p>
+          <p className="text-gray-500 text-sm mt-2">Enter your name and generate a room ID to create a game.</p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-2">
@@ -57,7 +57,7 @@ export default function CreateRoomForm({ socket, setUser, uid }) {
           <div className="grid gap-2">
             <Label htmlFor="room-id">Room ID</Label>
             <div className="flex items-center">
-              <Input isReadOnly type="text" value={copied ? "Copied!" : roomID} onClick={copyToClipboard} style={{ fontFamily: "'Digital-7 Mono', sans-serif", letterSpacing: "0.1em" }} className="flex-grow" />
+              <Input isReadOnly type="text" value={copied ? "Copied!" : roomId} onClick={copyToClipboard} style={{ fontFamily: "'Digital-7 Mono', sans-serif", letterSpacing: "0.1em" }} className="flex-grow" />
               <Button variant="ghost" onClick={generateNewId} className="h-10 ml-2">
                 <RefreshCwIcon className="w-5 h-5 mr-1" />
                 Generate
@@ -67,12 +67,12 @@ export default function CreateRoomForm({ socket, setUser, uid }) {
         </CardContent>
         <CardFooter className="flex justify-between items-center">
           <span className="text-gray-500 text-sm">
-            Have a Room ID?{" "}
+            Have a room ID?{" "}
             <Link to="/join" className="text-blue-600 hover:underline" prefetch={false}>
               Join Room
             </Link>
           </span>
-          <Button type="submit" className={`bg-blue-600 text-white ${!name || !roomID ? "cursor-not-allowed opacity-50" : "hover:bg-blue-700"}`} onClick={createRoom} disabled={!name || !roomID}>
+          <Button type="submit" className={`bg-blue-600 text-white ${!name || !roomId ? "cursor-not-allowed opacity-50" : "hover:bg-blue-700"}`} onClick={createRoom} disabled={!name || !roomId}>
             Create
           </Button>
         </CardFooter>
