@@ -20,6 +20,7 @@ export default function RoomPage({ socket, user }) {
   const [chosenWord, setChosenWord] = useState("");
   const [userGuessed, setUserGuessed] = useState(false);
   const [scores, setScores] = useState({});
+  const [currentRound, setCurrentRound] = useState(1);
   const navigate = useNavigate();
   const canvasRef = useRef(null);
   const timerRef = useRef(null);
@@ -84,8 +85,13 @@ export default function RoomPage({ socket, user }) {
       setScores(newScores);
     });
 
+    socket.on("roundUpdate", (round) => {
+      setCurrentRound(round);
+    });
+
     return () => {
       socket.emit("leaveRoom", roomId);
+      socket.off("roundUpdate");
       socket.disconnect();
     };
   }, [roomId, socket, user]);
@@ -172,7 +178,9 @@ export default function RoomPage({ socket, user }) {
         )}
         <span className="mx-2 text-primary">(Users Online: {users.length})</span>
         {showTimer && <span className="mx-2 text-red-500">Time Left: {timeLeft}s</span>}
-        <span className="mx-2 text-gray-500">Room ID: {roomId}</span>
+        <span className="mx-2 text-gray-500">
+          Room ID: {roomId} Round: {currentRound}/3
+        </span>
         <button className="ml-auto border-2 w-32" onClick={handleLeaveRoom}>
           Leave Room
         </button>

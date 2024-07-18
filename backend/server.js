@@ -20,7 +20,7 @@ app.get("/", (req, res) => {
 
 const startHostTimer = (roomId) => {
   let remainingTime = ROUND_TIME;
-  const users = rooms[roomId];
+  const users = rooms[roomId].users;
 
   const timerInterval = setInterval(() => {
     remainingTime -= 1;
@@ -32,14 +32,16 @@ const startHostTimer = (roomId) => {
       if (users && users.length > 1) {
         const currentHostIndex = users.findIndex((user) => user.host);
         let nextHostIndex = (currentHostIndex + 1) % users.length;
-        while (nextHostIndex === currentHostIndex) {
-          nextHostIndex = (nextHostIndex + 1) % users.length;
-        }
 
         users[currentHostIndex].host = false;
         users[nextHostIndex].host = true;
 
-        io.to(roomId).emit("updateUsersOnline", users);
+        if (nextHostIndex === 0) {
+          rooms[roomId].round += 1;
+          io.to(roomId).emit("roundUpdate", rooms[roomId].round);
+        }
+
+        io.to(roomId).emit("updateUsersOnline", rooms[roomId].users);
         io.to(roomId).emit("hostChanged", users[nextHostIndex]);
         io.to(roomId).emit("stopTimer");
         io.to(roomId).emit("resetCanvas");
@@ -62,24 +64,24 @@ io.on("connection", (socket) => {
     socket.join(roomId);
 
     if (!rooms[roomId]) {
-      rooms[roomId] = [];
+      rooms[roomId] = { users: [], round: 1 };
     }
 
-    rooms[roomId].push({ name, userId, host, socketId: socket.id });
+    rooms[roomId].users.push({ name, userId, host, score: 0, socketId: socket.id });
 
     console.log(`User joined: ${JSON.stringify(data)}`);
-    console.log(`Users in room ${roomId}: ${JSON.stringify(rooms[roomId])}`);
+    console.log(`Users in room ${roomId}: ${JSON.stringify(rooms[roomId].users)}`);
 
-    io.to(roomId).emit("updateUsersOnline", rooms[roomId]);
+    io.to(roomId).emit("updateUsersOnline", rooms[roomId].users);
   });
 
   socket.on("leaveRoom", (roomId) => {
     if (rooms[roomId]) {
-      rooms[roomId] = rooms[roomId].filter((user) => user.socketId !== socket.id);
-      if (rooms[roomId].length === 0) {
+      rooms[roomId].users = rooms[roomId].users.filter((user) => user.socketId !== socket.id);
+      if (rooms[roomId].users.length === 0) {
         delete rooms[roomId];
       } else {
-        io.to(roomId).emit("updateUsersOnline", rooms[roomId]);
+        io.to(roomId).emit("updateUsersOnline", rooms[roomId].users);
       }
     }
     socket.leave(roomId);
@@ -99,6 +101,7 @@ io.on("connection", (socket) => {
     const randomWords = getRandomWords();
     io.to(roomId).emit("randomWords", randomWords);
     startHostTimer(roomId);
+    io.to(roomId).emit("roundUpdate", rooms[roomId].round);
   });
 
   socket.on("wordChosen", ({ roomId, word }) => {
@@ -106,7 +109,7 @@ io.on("connection", (socket) => {
   });
 
   const updateAndBroadcastScores = (roomId, userId, points) => {
-    const users = rooms[roomId];
+    const users = rooms[roomId].users;
     if (users) {
       const user = users.find((user) => user.userId === userId);
       if (user) {
@@ -124,14 +127,14 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnecting", () => {
-    const socketRooms = Object.keys(socket.rooms);
+    const socketRooms = Array.from(socket.rooms);
     socketRooms.forEach((roomId) => {
       if (roomId !== socket.id && rooms[roomId]) {
-        rooms[roomId] = rooms[roomId].filter((user) => user.socketId !== socket.id);
-        if (rooms[roomId].length === 0) {
+        rooms[roomId].users = rooms[roomId].users.filter((user) => user.socketId !== socket.id);
+        if (rooms[roomId].users.length === 0) {
           delete rooms[roomId];
         } else {
-          io.to(roomId).emit("updateUsersOnline", rooms[roomId]);
+          io.to(roomId).emit("updateUsersOnline", rooms[roomId].users);
         }
       }
     });
