@@ -3,6 +3,8 @@ import HomePage from "./components/HomePage";
 import RoomPage from "./components/RoomPage";
 import { Route, Routes } from "react-router-dom";
 import io from "socket.io-client";
+import CreateRoomForm from "./components/CreateRoomForm";
+import JoinRoomForm from "./components/JoinRoomForm";
 
 const server = import.meta.env.VITE_SERVER_URL;
 const connectionOptions = {
@@ -39,8 +41,10 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<HomePage socket={socket} setUser={setUser} uid={generateId} />} />
+      <Route path="/" element={<HomePage />} />
       <Route path="/:roomId" element={<RoomPage socket={socket} user={user} />} />
+      <Route path="/create" element={<CreateRoomForm socket={socket} setUser={setUser} uid={generateId} />} />
+      <Route path="/join" element={<JoinRoomForm socket={socket} setUser={setUser} uid={generateId} />} />
     </Routes>
   );
 }
