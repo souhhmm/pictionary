@@ -2355,6 +2355,7 @@ export default function RoomPage({ socket, user }) {
   const [users, setUsers] = useState([]);
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState("");
+  const endOfMessagesRef = useRef(null);
   const [isHost, setIsHost] = useState(user.host);
   const [timeLeft, setTimeLeft] = useState(ROUND_TIME);
   const [showStartButton, setShowStartButton] = useState(true);
@@ -2519,6 +2520,12 @@ export default function RoomPage({ socket, user }) {
     socket.emit("wordChosen", { roomId, word });
   };
 
+  useEffect(() => {
+    if (endOfMessagesRef.current) {
+      endOfMessagesRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages]);
+
   return (
     <div className="grid grid-cols-[300px_1fr_300px] h-screen w-full bg-background">
       {/* Users Sidebar */}
@@ -2544,7 +2551,7 @@ export default function RoomPage({ socket, user }) {
                   <div className="text-xs text-gray-500">{user.host ? "Drawing" : "Guessing"}</div>
                 </div>
               </div>
-              <Badge variant="outline">{scores[user.userId] || 0}</Badge>
+              <Badge variant="outline">Score: {scores[user.userId] || 0}</Badge>
             </div>
           ))}
         </div>
@@ -2642,10 +2649,11 @@ export default function RoomPage({ socket, user }) {
                 </Avatar>
                 <div className={`flex-1 rounded-md px-2 py-0 ${msg.highlight ? "bg-green-200" : "bg-transparent"}`}>
                   <div className="font-medium">{msg.user}</div>
-                  <div>{msg.text}</div>
+                  <div className={`text-base ${msg.highlight ? "font-bold text-green-600" : ""}`}>{msg.text}</div>
                 </div>
               </div>
             ))}
+            <div ref={endOfMessagesRef} />
           </div>
           {/* Message Input */}
           <form onSubmit={handleSendMessage} className="relative mt-auto mb-1 flex items-center">
