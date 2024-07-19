@@ -7,10 +7,13 @@ export default function pencilDraw(color) {
     myPath = new Paper.Path();
     myPath.strokeColor = color;
     myPath.strokeWidth = 3;
+    myPath.strokeCap = "round";
+    myPath.strokeJoin = "round";
   };
 
   Paper.view.onMouseDrag = (event) => {
     myPath.add(event.point);
+    myPath.smooth();
   };
 
   Paper.view.draw();

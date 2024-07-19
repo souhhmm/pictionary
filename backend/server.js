@@ -2346,7 +2346,7 @@ const wordsList = [
   "William Shakespeare",
 ];
 
-const ROUND_TIME = 20;
+const ROUND_TIME = 60;
 const SCORE = 100;
 
 app.get("/", (req, res) => {
