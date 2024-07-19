@@ -2346,7 +2346,7 @@ const wordsList = [
   "Sydney Opera House",
   "William Shakespeare",
 ];
-const ROUND_TIME = 60;
+const ROUND_TIME = 20;
 
 export default function RoomPage({ socket, user }) {
   const { roomId } = useParams();
