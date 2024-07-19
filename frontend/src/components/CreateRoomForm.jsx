@@ -57,7 +57,7 @@ export default function CreateRoomForm({ socket, setUser, uid }) {
           <div className="grid gap-2">
             <Label htmlFor="room-id">Room ID</Label>
             <div className="flex items-center">
-              <Input isReadOnly type="text" value={copied ? "Copied!" : roomId} onClick={copyToClipboard} style={{ fontFamily: "'Digital-7 Mono', sans-serif", letterSpacing: "0.1em" }} className="flex-grow" />
+              <Input readOnly type="text" value={copied ? "Copied!" : roomId} onClick={copyToClipboard} style={{ fontFamily: "'Digital-7 Mono', sans-serif", letterSpacing: "0.1em" }} className="flex-grow text-gray-500" />
               <Button variant="ghost" onClick={generateNewId} className="h-10 ml-2">
                 <RefreshCwIcon className="w-5 h-5 mr-1" />
                 Generate
@@ -68,7 +68,7 @@ export default function CreateRoomForm({ socket, setUser, uid }) {
         <CardFooter className="flex justify-between items-center">
           <span className="text-gray-500 text-sm">
             Have a room ID?{" "}
-            <Link to="/join" className="text-blue-600 hover:underline" prefetch={false}>
+            <Link to="/join" className="text-blue-600 hover:underline">
               Join Room
             </Link>
           </span>

@@ -52,7 +52,7 @@ const Canvas = forwardRef(({ tool, color, socket, user, isHost }, ref) => {
     }
   }, [color, tool, isHost]);
 
-  return <div className="flex justify-center mx-2 my-2">{isHost ? <canvas ref={canvasRef} width={800} height={400} className="border border-gray-300" /> : <img src={canvasImage} width={800} height={400} className="border border-gray-300" />}</div>;
+  return <>{isHost ? <canvas ref={canvasRef} className="w-full h-full" /> : <img src={canvasImage} className="w-full h-full" />}</>;
 });
 
 export default Canvas;

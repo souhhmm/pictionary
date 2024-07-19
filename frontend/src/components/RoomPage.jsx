@@ -1,13 +1,21 @@
 import React, { useState, useEffect, useRef } from "react";
 import Canvas from "./Canvas";
 import { useParams, useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Textarea } from "@/components/ui/textarea";
+import { Toggle } from "@/components/ui/toggle";
+import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const wordsList = ["Compact", "Magnificent", "Timesaving", "Dark", "Malevolence", "Tree", "Damage", "Man", "Termination", "Dangerous", "Mascot", "Underestimate"];
 const ROUND_TIME = 20;
 
 export default function RoomPage({ socket, user }) {
   const { roomId } = useParams();
-  const [tool, setTool] = useState("pencil");
+  const [tool, setTool] = useState("");
   const [color, setColor] = useState("#000000");
   const [users, setUsers] = useState([]);
   const [messages, setMessages] = useState([]);
@@ -137,6 +145,10 @@ export default function RoomPage({ socket, user }) {
     navigate("/");
   };
 
+  const handleToolChange = (value) => {
+    setTool(value);
+  };
+
   const handleSendMessage = (e) => {
     e.preventDefault();
     const isCorrectGuess = message.trim().toLowerCase() === chosenWord.trim().toLowerCase();
@@ -169,94 +181,227 @@ export default function RoomPage({ socket, user }) {
   };
 
   return (
-    <>
-      <div className="flex mx-2 my-2">
-        {isHost && showStartButton && users.length > 1 && (
-          <button onClick={startRound} className="ml-2 border-2 w-32 bg-green-500 text-white">
-            Start Round
-          </button>
-        )}
-        <span className="mx-2 text-primary">(Users Online: {users.length})</span>
-        {showTimer && <span className="mx-2 text-red-500">Time Left: {timeLeft}s</span>}
-        <span className="mx-2 text-gray-500">
-          Room ID: {roomId} Round: {currentRound}/3
-        </span>
-        <button className="ml-auto border-2 w-32" onClick={handleLeaveRoom}>
-          Leave Room
-        </button>
-      </div>
-      {isHost && !showStartButton && randomWords.length > 0 && (
-        <div className="flex mx-2 my-2">
-          {randomWords.map((word, index) => (
-            <button key={index} onClick={() => handleWordClick(word)} className="mx-2 border-2 p-2 bg-blue-500 text-white">
-              {word}
-            </button>
-          ))}
+    <div className="grid grid-cols-[300px_1fr_300px] h-screen w-full bg-background">
+      {/* Users Sidebar */}
+      <div className="flex flex-col gap-4 p-4 bg-card text-card-foreground">
+        {/* Users List */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <UsersIcon className="w-5 h-5" />
+            <span className="font-medium">Players</span>
+          </div>
         </div>
-      )}
-      {chosenWord && (
-        <div className="flex mx-2 my-2">
-          <span className="text-xl">Chosen Word: {isHost ? chosenWord : chosenWord.split("").map((char, index) => <span key={index}>{char === " " ? " " : "_ "}</span>)}</span>
-        </div>
-      )}
-      {isHost && !showStartButton && (
-        <div className="flex flex-col mx-2 my-2">
-          <label htmlFor="color">Color Picker</label>
-          <input type="color" id="color" className="mx-2 border bg-white border-gray-200 p-1 cursor-pointer rounded-lg" value={color} onChange={(e) => setColor(e.target.value)} />
-          <label htmlFor="pencil" className="flex items-center">
-            <input type="radio" name="tool" id="pencil" checked={tool === "pencil"} value="pencil" className="mr-2" onChange={(e) => setTool(e.target.value)} />
-            Pencil
-          </label>
-          <label className="flex items-center">
-            <input type="radio" name="tool" id="line" checked={tool === "line"} value="line" className="mr-2" onChange={(e) => setTool(e.target.value)} />
-            Line
-          </label>
-          <label className="flex items-center">
-            <input type="radio" name="tool" id="eraser" checked={tool === "eraser"} value="eraser" className="mr-2" onChange={(e) => setTool(e.target.value)} />
-            Eraser
-          </label>
-          <button className="ml-2 border-2 w-32" onClick={() => canvasRef.current.resetCanvas()}>
-            Clear Canvas
-          </button>
-        </div>
-      )}
-      <Canvas ref={canvasRef} tool={tool} color={color} socket={socket} user={{ ...user, roomId }} isHost={isHost} />
-      <div className="flex flex-col mx-2 my-2">
-        <h3 className="font-bold">Users in Room:</h3>
         {users.map((user) => (
-          <div key={user.userId} className={`border p-2 my-2 ${user.host ? "bg-blue-100" : ""}`}>
-            <p>
-              <strong>Name:</strong> {user.name}
-            </p>
-            <p>
-              <strong>User ID:</strong> {user.userId}
-            </p>
-            <p>
-              <strong>Host:</strong> {user.host ? "Yes" : "No"}
-            </p>
-            <p>
-              <strong>Score:</strong> {scores[user.userId] || 0}
-            </p>
+          <div key={user.userId} className="flex flex-col gap-2 overflow-auto">
+            <div className="flex items-center justify-between px-3 py-2 rounded-md hover:bg-gray-100">
+              <div className="flex items-center gap-2">
+                <Avatar className="w-8 h-8 border">
+                  <AvatarImage src="frontend/src/components/placeholder-user.jpg" />
+                  <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div>
+                  <div className="font-medium">{user.name}</div>
+                  <div className="text-xs text-muted-foreground">{user.score}</div>
+                </div>
+              </div>
+            </div>
           </div>
         ))}
       </div>
-      <div className="flex flex-col mx-2 my-2">
-        <h3 className="font-bold">Chat:</h3>
-        <div className="border p-2 my-2 h-64 overflow-y-scroll">
-          {messages.map((msg, index) => (
-            <div key={index} className="border p-2 my-1" style={{ backgroundColor: msg.highlight ? "#a3e9a4" : "transparent" }}>
-              <strong>{msg.user}: </strong>
-              {msg.text}
+
+      {/* Drawing Canvas and Controls */}
+      <div className="flex flex-col items-center justify-center bg-gray-100">
+        <div className="relative w-[calc(100%-40px)] max-w-[800px] h-[500px] bg-white border rounded-lg overflow-hidden mx-4">
+          <Canvas ref={canvasRef} tool={tool} color={color} socket={socket} user={{ ...user, roomId }} isHost={isHost} />
+          <div className="absolute top-4 left-4 flex items-center gap-2 bg-background/80 px-3 py-1 rounded-md">
+            <div className="font-medium">Room ID:</div>
+            <div>{roomId}</div>
+          </div>
+          {showTimer && (
+            <div className="absolute top-4 right-4 flex items-center gap-2 bg-background/80 px-3 py-1 rounded-md">
+              <div className="font-medium">Timer:</div>
+              <div>{timeLeft}s</div>
             </div>
-          ))}
+          )}
+          <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-background/80 px-3 py-1 rounded-md">
+            <div className="font-medium">Round:</div>
+            <div>{currentRound}/3</div>
+          </div>
+          <div className="absolute bottom-4 right-4 flex items-center gap-2 bg-background/80 px-3 py-1 rounded-md">
+            <Button variant="ghost" size="icon" onClick={handleLeaveRoom}>
+              <LeafIcon className="w-4 h-4" />
+              <span className="sr-only">Leave room</span>
+            </Button>
+          </div>
         </div>
-        <form onSubmit={handleSendMessage} className="flex">
-          <input type="text" value={message} onChange={(e) => setMessage(e.target.value)} className={`border p-2 flex-grow ${(isHost && !showStartButton) || userGuessed ? "cursor-not-allowed" : ""}`} placeholder="Type your message..." disabled={(isHost && !showStartButton) || userGuessed} />
-          <button type="submit" className={`border p-2 bg-blue-500 text-white ${(isHost && !showStartButton) || userGuessed ? "cursor-not-allowed opacity-50" : ""}`} disabled={(isHost && !showStartButton) || userGuessed}>
-            Send
-          </button>
-        </form>
+        {isHost && !showStartButton && (
+          <div className="flex items-center justify-center gap-4 mt-4">
+            <Button variant="ghost" size="icon">
+              <PaletteIcon className="w-5 h-5" />
+              <span className="sr-only">Color Picker</span>
+            </Button>
+            <ToggleGroup type="single" defaultValue="pencil" aria-label="Tool selection" value={tool} onValueChange={handleToolChange}>
+              <ToggleGroupItem value="pencil" style={{ backgroundColor: tool === "pencil" ? "#3b82f6" : "#e5e7eb", color: tool === "pencil" ? "#ffffff" : "#374151" }} className="flex items-center justify-center p-2 rounded-md transition-colors">
+                <PencilIcon className="w-5 h-5" style={{ color: tool === "pencil" ? "#ffffff" : "#374151" }} />
+                <span className="sr-only">Pencil tool</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="eraser" style={{ backgroundColor: tool === "eraser" ? "#3b82f6" : "#e5e7eb", color: tool === "eraser" ? "#ffffff" : "#374151" }} className="flex items-center justify-center p-2 rounded-md transition-colors">
+                <EraserIcon className="w-5 h-5" style={{ color: tool === "eraser" ? "#ffffff" : "#374151" }} />
+                <span className="sr-only">Eraser tool</span>
+              </ToggleGroupItem>
+              <ToggleGroupItem value="line" style={{ backgroundColor: tool === "line" ? "#3b82f6" : "#e5e7eb", color: tool === "line" ? "#ffffff" : "#374151" }} className="flex items-center justify-center p-2 rounded-md transition-colors">
+                <PenLineIcon className="w-5 h-5" style={{ color: tool === "line" ? "#ffffff" : "#374151" }} />
+                <span className="sr-only">Line tool</span>
+              </ToggleGroupItem>
+            </ToggleGroup>
+            <Button variant="ghost" size="icon" onClick={() => canvasRef.current.resetCanvas()}>
+              <TrashIcon className="w-5 h-5" />
+              <span className="sr-only">Clear canvas</span>
+            </Button>
+          </div>
+        )}
+        {isHost && showStartButton && users.length > 1 && (
+          <Button className="mt-4 bg-blue-600 text-white" onClick={startRound}>
+            Start Round
+          </Button>
+        )}
+        {isHost && !showStartButton && randomWords.length > 0 && (
+          <div className="flex items-center justify-center gap-4 mt-4">
+            {randomWords.map((word, index) => (
+              <Button key={index} onClick={() => handleWordClick(word)} variant="outline">
+                {word}
+              </Button>
+            ))}
+          </div>
+        )}
+        {chosenWord && (
+          <div className="mt-4 text-lg font-medium">
+            <span className="font-medium">{isHost ? chosenWord : chosenWord.split("").map((char, index) => <span key={index}>{char === " " ? " " : "_ "}</span>)}</span>
+          </div>
+        )}
       </div>
-    </>
+
+      {/* Chatbox Sidebar */}
+      <div className="flex flex-col gap-4 p-4 bg-card text-card-foreground">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MessageSquareIcon className="w-5 h-5" />
+            <span className="font-medium">Chat</span>
+          </div>
+        </div>
+        <div className="flex-1 flex flex-col">
+          <div className="flex-1 overflow-y-auto max-h-[calc(100vh-175px)]">
+            {/* Chat Messages */}
+            {messages.map((msg, index) => (
+              <div className="flex items-start gap-3 mb-4" key={index}>
+                <Avatar className="w-8 h-8 border">
+                  <AvatarImage src="frontend/src/components/placeholder-user.jpg" />
+                  <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                <div className={`flex-1 rounded-md px-2 py-0${msg.highlight ? "bg-green-300" : "transparent"}`}>
+                  <div className="font-medium">{msg.user}</div>
+                  <div>{msg.text}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Message Input */}
+          <form onSubmit={handleSendMessage} className="relative mt-auto mb-1 flex items-center">
+            <Input type="text" value={message} onChange={(e) => setMessage(e.target.value)} placeholder="Type your message..." className={`flex-1 min-h-[48px] rounded-lg bg-gray-100 resize-none p-4 border border-neutral-200 pr-16 ${(isHost && !showStartButton) || userGuessed ? "cursor-not-allowed opacity-50" : ""}`} disabled={(isHost && !showStartButton) || userGuessed} />
+            <Button variant="ghost" type="submit" size="icon" className={`absolute right-2 top-1/2 transform -translate-y-1/2 ${(isHost && !showStartButton) || userGuessed ? "cursor-not-allowed opacity-50" : ""}`} disabled={(isHost && !showStartButton) || userGuessed}>
+              <SendIcon className="w-4 h-4" />
+              <span className="sr-only">Send</span>
+            </Button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EraserIcon(props) {
+  return (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" />
+      <path d="M22 21H7" />
+      <path d="m5 11 9 9" />
+    </svg>
+  );
+}
+
+function LeafIcon(props) {
+  return (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z" />
+      <path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12" />
+    </svg>
+  );
+}
+
+function MessageSquareIcon(props) {
+  return (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  );
+}
+
+function PenLineIcon(props) {
+  return (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
+function PencilIcon(props) {
+  return (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+      <path d="m15 5 4 4" />
+    </svg>
+  );
+}
+
+function TrashIcon(props) {
+  return (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 6h18" />
+      <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+      <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+    </svg>
+  );
+}
+
+function UsersIcon(props) {
+  return (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
+function PaletteIcon(props) {
+  return (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="13.5" cy="6.5" r=".5" fill="currentColor" />
+      <circle cx="17.5" cy="10.5" r=".5" fill="currentColor" />
+      <circle cx="8.5" cy="7.5" r=".5" fill="currentColor" />
+      <circle cx="6.5" cy="12.5" r=".5" fill="currentColor" />
+      <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" />
+    </svg>
+  );
+}
+
+function SendIcon(props) {
+  return (
+    <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="m22 2-7 20-4-9-9-4Z" />
+      <path d="M22 2 11 13" />
+    </svg>
   );
 }
