@@ -12,7 +12,6 @@ const rooms = {};
 const wordsList = require("./words");
 
 const ROUND_TIME = 60;
-const SCORE = 100;
 
 app.get("/", (req, res) => {
   res.send("Server is running");
@@ -25,42 +24,80 @@ const startHostTimer = (roomId) => {
   }
 
   let remainingTime = ROUND_TIME;
+  rooms[roomId].remainingTime = remainingTime;
   const users = rooms[roomId].users;
+  rooms[roomId].correctGuesses = [];
+  rooms[roomId].timerInterval = setInterval(() => {
+    if (!rooms[roomId]) {
+      clearInterval(rooms[roomId].timerInterval);
+      return;
+    }
 
-  const timerInterval = setInterval(() => {
     remainingTime -= 1;
+    rooms[roomId].remainingTime = remainingTime;
     io.to(roomId).emit("timerUpdate", remainingTime);
 
     if (remainingTime <= 0) {
-      clearInterval(timerInterval);
-
-      if (users.length > 1) {
-        const currentHostIndex = users.findIndex((user) => user.host);
-        if (currentHostIndex === -1) {
-          console.error("No host found in the room.");
-          return;
-        }
-
-        let nextHostIndex = (currentHostIndex + 1) % users.length;
-
-        users[currentHostIndex].host = false;
-        users[nextHostIndex].host = true;
-
-        if (nextHostIndex === 0) {
-          rooms[roomId].round = (rooms[roomId].round || 1) + 1;
-          io.to(roomId).emit("roundUpdate", rooms[roomId].round);
-        }
-
-        io.to(roomId).emit("updateUsersOnline", rooms[roomId].users);
-        io.to(roomId).emit("hostChanged", users[nextHostIndex]);
-        io.to(roomId).emit("stopTimer");
-        io.to(roomId).emit("resetCanvas");
-      } else {
-        console.warn(`Not enough users to proceed to the next round in room ${roomId}.`);
-      }
+      clearInterval(rooms[roomId].timerInterval);
+      changeHost(roomId);
     }
   }, 1000);
   io.to(roomId).emit("startTimer");
+};
+
+const stopHostTimer = (roomId) => {
+  if (rooms[roomId] && rooms[roomId].timerInterval) {
+    clearInterval(rooms[roomId].timerInterval);
+    rooms[roomId].timerInterval = null;
+  }
+};
+
+const changeHost = (roomId) => {
+  const room = rooms[roomId];
+  if (!room) return;
+
+  const users = room.users;
+  if (users.length > 1) {
+    const currentHostIndex = users.findIndex((user) => user.host);
+    if (currentHostIndex === -1) {
+      console.error("No host found in the room.");
+      return;
+    }
+
+    let nextHostIndex = (currentHostIndex + 1) % users.length;
+
+    users[currentHostIndex].host = false;
+    users[nextHostIndex].host = true;
+
+    if (nextHostIndex === 0) {
+      room.round = (room.round || 1) + 1;
+      io.to(roomId).emit("roundUpdate", room.round);
+    }
+
+    io.to(roomId).emit("updateUsersOnline", users);
+    io.to(roomId).emit("hostChanged", users[nextHostIndex]);
+    io.to(roomId).emit("stopTimer");
+    io.to(roomId).emit("resetCanvas");
+
+    const correctGuesses = room.correctGuesses;
+    if (correctGuesses.length > 0) {
+      const totalTimeTaken = correctGuesses.reduce((sum, guess) => sum + guess.timeTaken, 0);
+      const averageTimeTaken = totalTimeTaken / correctGuesses.length;
+      const hostPoints = averageTimeTaken * 10;
+
+      const host = users[currentHostIndex];
+      host.score = (host.score || 0) + hostPoints;
+
+      io.to(roomId).emit(
+        "updateScores",
+        users.map(({ userId, score }) => ({ userId, score }))
+      );
+    }
+
+    stopHostTimer(roomId);
+  } else {
+    console.warn(`Not enough users to proceed to the next round in room ${roomId}.`);
+  }
 };
 
 const getRandomWords = () => {
@@ -81,7 +118,7 @@ io.on("connection", (socket) => {
     socket.join(roomId);
 
     if (!rooms[roomId]) {
-      rooms[roomId] = { users: [], round: 1 };
+      rooms[roomId] = { users: [], round: 1, correctGuesses: [] };
     }
 
     rooms[roomId].users.push({ name, userId, host, score: 0, socketId: socket.id });
@@ -145,7 +182,7 @@ io.on("connection", (socket) => {
     io.to(roomId).emit("chosenWord", word);
   });
 
-  const updateAndBroadcastScores = (roomId, userId, points) => {
+  const updateAndBroadcastScores = (roomId, userId, points, timeTaken = null) => {
     if (!rooms[roomId] || !rooms[roomId].users) {
       console.error(`Room ${roomId} does not exist or has no users.`);
       return;
@@ -155,10 +192,23 @@ io.on("connection", (socket) => {
     const user = users.find((user) => user.userId === userId);
     if (user) {
       user.score = (user.score || 0) + points;
+
+      if (timeTaken !== null) {
+        rooms[roomId].correctGuesses.push({ userId, timeTaken });
+      }
+
       io.to(roomId).emit(
         "updateScores",
         users.map(({ userId, score }) => ({ userId, score }))
       );
+
+      const host = users.find((user) => user.host);
+      const nonHostUsers = users.filter((user) => !user.host);
+      const allNonHostUsersGuessed = nonHostUsers.every((user) => rooms[roomId].correctGuesses.some((guess) => guess.userId === user.userId));
+
+      if (allNonHostUsersGuessed && host) {
+        changeHost(roomId);
+      }
     } else {
       console.error(`User ${userId} not found in room ${roomId}.`);
     }
@@ -170,7 +220,11 @@ io.on("connection", (socket) => {
       return;
     }
 
-    updateAndBroadcastScores(roomId, userId, SCORE);
+    const remainingTime = rooms[roomId]?.remainingTime || 0;
+    const timeTaken = ROUND_TIME - remainingTime;
+    const points = remainingTime * 10;
+
+    updateAndBroadcastScores(roomId, userId, points, timeTaken);
   });
 
   socket.on("disconnecting", () => {

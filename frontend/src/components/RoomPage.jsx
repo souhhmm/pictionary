@@ -82,7 +82,7 @@ export default function RoomPage({ socket, user }) {
     socket.on("correctGuess", (guesserId) => {
       if (guesserId === user.userId) {
         setUserGuessed(true);
-        updateScore(user.userId, 10);
+        // updateScore(user.userId, 10);
       }
     });
 
@@ -116,12 +116,12 @@ export default function RoomPage({ socket, user }) {
     }));
   };
 
-  const updateScore = (userId, points) => {
-    setScores((prevScores) => ({
-      ...prevScores,
-      [userId]: (prevScores[userId] || 0) + points,
-    }));
-  };
+  // const updateScore = (userId, points) => {
+  //   setScores((prevScores) => ({
+  //     ...prevScores,
+  //     [userId]: (prevScores[userId] || 0) + points,
+  //   }));
+  // };
 
   const resetRound = () => {
     clearInterval(timerRef.current);
@@ -312,7 +312,7 @@ export default function RoomPage({ socket, user }) {
                   <AvatarImage src="frontend/src/components/placeholder-user.jpg" />
                   <AvatarFallback>{msg.user.charAt(0).toUpperCase()}</AvatarFallback>
                 </Avatar>
-                <div className={`flex-1 rounded-md px-2 py-0 ${msg.highlight ? "bg-green-200" : "bg-transparent"}`}>
+                <div className={`flex-1 rounded-md px-2 py-1 ${msg.highlight ? "bg-green-200" : "bg-transparent"}`}>
                   <div className="font-medium">{msg.user}</div>
                   <div className={`text-base ${msg.highlight ? "font-bold text-green-600" : ""}`}>{msg.text}</div>
                 </div>
