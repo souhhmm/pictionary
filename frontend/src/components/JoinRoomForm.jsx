@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
-export default function JoinRoomForm({ socket, setUser, uid }) {
+export default function JoinRoomForm({ setUser, uid }) {
   const [roomId, setRoomId] = useState("");
   const [name, setName] = useState("");
   const navigate = useNavigate();
@@ -43,7 +43,7 @@ export default function JoinRoomForm({ socket, setUser, uid }) {
             <div className="grid gap-2">
               <Label htmlFor="room-id">Room ID</Label>
               <div className="flex items-center">
-                <Input type="text" value={roomId} placeholder="Enter a valid Room ID"style={{ fontFamily: "'Digital-7 Mono', sans-serif", letterSpacing: "0.1em" }} className="flex-grow" onChange={(e) => setRoomId(e.target.value)} />
+                <Input type="text" value={roomId} placeholder="Enter a valid Room ID" style={{ fontFamily: "'Digital-7 Mono', sans-serif", letterSpacing: "0.1em" }} className="flex-grow" onChange={(e) => setRoomId(e.target.value)} />
               </div>
             </div>
           </CardContent>

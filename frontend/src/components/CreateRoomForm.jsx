@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 
-export default function CreateRoomForm({ socket, setUser, uid }) {
+export default function CreateRoomForm({ setUser, uid }) {
   const [name, setName] = useState("");
   const [roomId, setroomId] = useState(uid());
   const [copied, setCopied] = useState(false);

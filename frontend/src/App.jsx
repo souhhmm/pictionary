@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import HomePage from "./components/HomePage";
+// import HomePage from "./components/HomePage";
 import RoomPage from "./components/RoomPage";
 import { Route, Routes } from "react-router-dom";
 import io from "socket.io-client";
@@ -18,32 +18,32 @@ const socket = io(server, connectionOptions);
 
 export default function App() {
   const [user, setUser] = useState(null);
-  const [roomID, setRoomID] = useState("");
+  // const [roomID, setRoomID] = useState("");
 
   const generateId = () => {
     const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-    let result = "";
+    let result = "";  
     for (let i = 0; i < 8; i++) {
       result += characters.charAt(Math.floor(Math.random() * characters.length));
     }
     return result;
   };
 
-  useEffect(() => {
-    socket.on("userIsJoined", (data) => {
-      if (data.success) {
-        console.log("user joined");
-      } else {
-        console.log("user not joined");
-      }
-    });
-  }, []);
+  // useEffect(() => {
+  //   socket.on("userIsJoined", (data) => {
+  //     if (data.success) {
+  //       console.log("user joined");
+  //     } else {
+  //       console.log("user not joined");
+  //     }
+  //   });
+  // }, []);
 
   return (
     <Routes>
-      <Route path="/" element={<CreateRoomForm socket={socket} setUser={setUser} uid={generateId} />} />
+      <Route path="/" element={<CreateRoomForm setUser={setUser} uid={generateId} />} />
       <Route path="/:roomId" element={<RoomPage socket={socket} user={user} />} />
-      <Route path="/join" element={<JoinRoomForm socket={socket} setUser={setUser} uid={generateId} />} />
+      <Route path="/join" element={<JoinRoomForm setUser={setUser} uid={generateId} />} />
     </Routes>
   );
 }

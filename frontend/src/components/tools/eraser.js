@@ -1,7 +1,7 @@
 import Paper from "paper";
 
 export default function eraserDraw() {
-  const eraserSize = 50; // size of the eraser
+  const eraserSize = 50;
 
   // create an invisible eraser path for hit testing
   const eraserPath = new Paper.Path.Circle({

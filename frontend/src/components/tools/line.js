@@ -4,11 +4,10 @@ export default function lineDraw(color) {
   let myPath;
 
   Paper.view.onMouseDown = (event) => {
-    // create a new path when the mouse is pressed down
     myPath = new Paper.Path();
     myPath.strokeColor = color;
     myPath.strokeWidth = 3;
-    myPath.add(event.point); // add the starting point to the path
+    myPath.add(event.point);
   };
 
   Paper.view.onMouseDrag = (event) => {
@@ -22,7 +21,7 @@ export default function lineDraw(color) {
   Paper.view.onMouseUp = (event) => {
     if (myPath) {
       myPath.add(event.point); // finalize the line with the end point
-      myPath = null; // reset the path for the next line
+      myPath = null;
     }
   };
 

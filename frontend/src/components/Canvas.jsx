@@ -4,7 +4,7 @@ import pencilDraw from "./tools/pencil";
 import eraserDraw from "./tools/eraser";
 import lineDraw from "./tools/line";
 
-const Canvas = forwardRef(({ tool, color, socket, user, isHost }, ref) => {
+const Canvas = forwardRef(({ tool, color, socket, user, isHost }, ref) => { //forward ref to pass ref to parent component
   const canvasRef = useRef(null);
   const [canvasImage, setCanvasImage] = useState(null);
 

@@ -3,13 +3,13 @@ import Canvas from "./Canvas";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Textarea } from "@/components/ui/textarea";
-import { Toggle } from "@/components/ui/toggle";
-import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
+// import { Textarea } from "@/components/ui/textarea";
+// import { Toggle } from "@/components/ui/toggle";
+// import { Separator } from "@/components/ui/separator";
+// import { ScrollArea } from "@/components/ui/scroll-area";
 
 const ROUND_TIME = 60;
 

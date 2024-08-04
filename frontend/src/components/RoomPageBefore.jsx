@@ -1,4 +1,4 @@
-export default function Test() {
+export default function RoomPageBefore() {
   return (
     <>
       <div className="flex mx-2 my-2">
