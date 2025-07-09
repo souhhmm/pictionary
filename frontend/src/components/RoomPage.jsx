@@ -30,8 +30,12 @@ export default function RoomPage({ socket, user }) {
   const [userGuessed, setUserGuessed] = useState(false);
   const [scores, setScores] = useState({});
   const [currentRound, setCurrentRound] = useState(1);
+  const [totalRounds, setTotalRounds] = useState(3);
+  const [gameEnded, setGameEnded] = useState(false);
+  const [finalRankings, setFinalRankings] = useState([]);
   const [lastScoringEvent, setLastScoringEvent] = useState(null);
   const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
+  const [gameInProgress, setGameInProgress] = useState(false);
   const navigate = useNavigate();
   const canvasRef = useRef(null);
   const timerRef = useRef(null);
@@ -246,6 +250,33 @@ export default function RoomPage({ socket, user }) {
       }
     };
 
+    const handleTotalRoundsUpdated = (data) => {
+      try {
+        if (data && typeof data.totalRounds === 'number') {
+          setTotalRounds(data.totalRounds);
+        }
+      } catch (error) {
+        console.error("Error updating total rounds:", error);
+      }
+    };
+
+    const handleGameEnded = (data) => {
+      try {
+        if (data && data.finalRankings) {
+          setGameEnded(true);
+          setFinalRankings(data.finalRankings);
+          setShowStartButton(true);
+          setShowTimer(false);
+          setChosenWord("");
+          setRandomWords([]);
+          setUserGuessed(false);
+          setGameInProgress(false);
+        }
+      } catch (error) {
+        console.error("Error handling game end:", error);
+      }
+    };
+
     // Add error handling for socket connection
     const handleSocketError = (error) => {
       console.error("Socket error:", error);
@@ -326,6 +357,8 @@ export default function RoomPage({ socket, user }) {
     socket.on("playerScoring", handlePlayerScoring);
     socket.on("hostScoring", handleHostScoring);
     socket.on("roundUpdate", handleRoundUpdate);
+    socket.on("totalRoundsUpdated", handleTotalRoundsUpdated);
+    socket.on("gameEnded", handleGameEnded);
     socket.on("error", handleSocketError);
     socket.on("disconnect", handleSocketDisconnect);
     socket.on("roomError", handleRoomError);
@@ -433,6 +466,7 @@ export default function RoomPage({ socket, user }) {
       setRandomWords([]);
       setChosenWord("");
       setUserGuessed(false);
+      // Note: Don't reset gameInProgress here - that should only happen on new game
     } catch (error) {
       console.error("Error resetting round:", error);
     }
@@ -443,6 +477,7 @@ export default function RoomPage({ socket, user }) {
       if (socket && socket.connected) {
         socket.emit("startRound", roomId);
         setShowStartButton(false);
+        setGameInProgress(true);
       }
     } catch (error) {
       console.error("Error starting round:", error);
@@ -554,6 +589,32 @@ export default function RoomPage({ socket, user }) {
     }
   }, [messages]);
 
+  const handleRoundsChange = (newRounds) => {
+    try {
+      if (socket && socket.connected && isHost) {
+        socket.emit("setTotalRounds", {
+          roomId,
+          totalRounds: newRounds,
+          userId: user.userId
+        });
+      }
+    } catch (error) {
+      console.error("Error setting total rounds:", error);
+    }
+  };
+
+  const startNewGame = () => {
+    try {
+      setGameEnded(false);
+      setFinalRankings([]);
+      setCurrentRound(1);
+      setGameInProgress(false);
+      resetRound();
+    } catch (error) {
+      console.error("Error starting new game:", error);
+    }
+  };
+
   return (
     <div className="grid grid-cols-[300px_1fr_300px] h-screen w-full bg-background">
       {/* Users Sidebar */}
@@ -609,7 +670,7 @@ export default function RoomPage({ socket, user }) {
           )}
           <div className="absolute bottom-4 left-4 flex items-center gap-2 bg-background/80 px-3 py-1 rounded-md">
             <div className="font-medium">Round:</div>
-            <div>{currentRound}/3</div>
+            <div>{currentRound}/{totalRounds}</div>
           </div>
         </div>
         {isHost && !showStartButton && (
@@ -647,9 +708,36 @@ export default function RoomPage({ socket, user }) {
             </Button>
           </div>
         )}
-        {isHost && showStartButton && users.length > 1 && (
+        {isHost && showStartButton && !gameInProgress && (
+          <div className="flex flex-col items-center gap-4 mt-4">
+            <div className="flex items-center gap-2">
+              <label htmlFor="rounds-select" className="text-sm font-medium">Total Rounds:</label>
+              <select
+                id="rounds-select"
+                value={totalRounds}
+                onChange={(e) => handleRoundsChange(parseInt(e.target.value))}
+                className="px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                  <option key={num} value={num}>{num}</option>
+                ))}
+              </select>
+            </div>
+            {users.length > 1 && (
+              <Button className="bg-blue-600 text-white" onClick={startRound}>
+                Start Round
+              </Button>
+            )}
+          </div>
+        )}
+        {isHost && showStartButton && !gameInProgress && users.length <= 1 && (
+          <div className="mt-4 text-center text-gray-500">
+            Waiting for more players to join...
+          </div>
+        )}
+        {isHost && showStartButton && gameInProgress && users.length > 1 && (
           <Button className="mt-4 bg-blue-600 text-white" onClick={startRound}>
-            Start Round
+            Start Next Round
           </Button>
         )}
         {isHost && !showStartButton && randomWords.length > 0 && (
@@ -703,6 +791,57 @@ export default function RoomPage({ socket, user }) {
           </form>
         </div>
       </div>
+
+      {/* Game End Modal */}
+      {gameEnded && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-2xl font-bold text-center mb-4">Game Over!</h2>
+            <div className="space-y-3 mb-6">
+              <h3 className="text-lg font-semibold text-center">Final Rankings:</h3>
+              {finalRankings.map((player, index) => (
+                <div key={player.userId} className="flex items-center justify-between p-2 rounded-md bg-gray-50">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg font-bold">#{index + 1}</span>
+                    <span className="font-medium">{player.name}</span>
+                  </div>
+                  <Badge variant="outline" className="text-lg px-3 py-1">
+                    {player.score} pts
+                  </Badge>
+                </div>
+              ))}
+            </div>
+            {isHost && (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <label htmlFor="new-game-rounds" className="text-sm font-medium">Rounds for next game:</label>
+                  <select
+                    id="new-game-rounds"
+                    value={totalRounds}
+                    onChange={(e) => handleRoundsChange(parseInt(e.target.value))}
+                    className="px-3 py-1 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(num => (
+                      <option key={num} value={num}>{num}</option>
+                    ))}
+                  </select>
+                </div>
+                <Button 
+                  className="w-full bg-blue-600 text-white" 
+                  onClick={startNewGame}
+                >
+                  Start New Game
+                </Button>
+              </div>
+            )}
+            {!isHost && (
+              <div className="text-center text-gray-500">
+                Waiting for host to start a new game...
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

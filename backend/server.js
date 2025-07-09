@@ -224,9 +224,50 @@ const changeHost = (roomId) => {
     users[currentHostIndex].host = false;
     users[nextHostIndex].host = true;
 
+    // Check if this completes a full cycle and increment round
     if (nextHostIndex === 0) {
       room.round = (room.round || 1) + 1;
       io.to(roomId).emit("roundUpdate", room.round);
+      
+      // Check if game should end
+      if (room.round > room.totalRounds) {
+        room.gameEnded = true;
+        
+        // Calculate final rankings
+        const finalRankings = users
+          .map(user => ({ name: user.name, score: user.score || 0, userId: user.userId }))
+          .sort((a, b) => b.score - a.score);
+        
+        io.to(roomId).emit("gameEnded", {
+          finalRankings,
+          totalRounds: room.totalRounds
+        });
+        
+        // Stop the timer and reset room state
+        stopHostTimer(roomId);
+        
+        // Reset room for potential new game
+        room.round = 1;
+        room.gameEnded = false;
+        room.gameInProgress = false;
+        room.correctGuesses = [];
+        room.currentWord = null;
+        room.firstGuessUserId = null;
+        room.guessPositions = [];
+        users.forEach(user => {
+          user.score = 0;
+          user.host = false;
+        });
+        users[0].host = true; // Make first user host for new game
+        
+        io.to(roomId).emit("updateUsersOnline", users);
+        io.to(roomId).emit("hostChanged", users[0]);
+        io.to(roomId).emit("roundUpdate", 1); // Reset round display
+        io.to(roomId).emit("stopTimer");
+        io.to(roomId).emit("resetCanvas");
+        
+        return; // Exit early, don't continue with normal host change logic
+      }
     }
 
     io.to(roomId).emit("updateUsersOnline", users);
@@ -312,7 +353,9 @@ io.on("connection", (socket) => {
           consecutiveGuesses: {}, // Track consecutive correct guesses per user
           lastGuessTimestamps: {}, // Anti-spam protection
           guessPositions: [], // Track order of correct guesses
-          totalRounds: 0
+          totalRounds: 3, // Default to 3 rounds
+          gameEnded: false,
+          gameInProgress: false
         };
       }
 
@@ -329,6 +372,10 @@ io.on("connection", (socket) => {
       console.log(`Users in room ${roomId}: ${JSON.stringify(rooms[roomId].users)}`);
 
       io.to(roomId).emit("updateUsersOnline", rooms[roomId].users);
+      
+      // Send current room settings to the joining user
+      socket.emit("totalRoundsUpdated", { totalRounds: rooms[roomId].totalRounds });
+      socket.emit("roundUpdate", rooms[roomId].round);
     } catch (error) {
       console.error("Error in userJoined:", error);
       socket.emit("roomError", { type: "join_failed", message: "Failed to join room" });
@@ -463,10 +510,53 @@ io.on("connection", (socket) => {
       return;
     }
 
+    const room = rooms[roomId];
+    room.gameInProgress = true;
+
     const randomWords = getRandomWords();
     io.to(roomId).emit("randomWords", randomWords);
     startHostTimer(roomId);
-    io.to(roomId).emit("roundUpdate", rooms[roomId].round);
+    io.to(roomId).emit("roundUpdate", room.round);
+  });
+
+  socket.on("setTotalRounds", ({ roomId, totalRounds, userId }) => {
+    if (!roomId || !totalRounds || !userId) {
+      console.error("Invalid data for setTotalRounds event:", { roomId, totalRounds, userId });
+      return;
+    }
+
+    const room = rooms[roomId];
+    if (!room) {
+      console.error(`Room ${roomId} does not exist.`);
+      return;
+    }
+
+    // Verify that the user setting rounds is the host
+    const user = room.users.find(u => u.userId === userId);
+    if (!user || !user.host) {
+      console.error(`User ${userId} is not authorized to set total rounds.`);
+      return;
+    }
+
+    // Prevent changing rounds if game is in progress
+    if (room.gameInProgress) {
+      console.error(`Cannot change total rounds while game is in progress in room ${roomId}`);
+      socket.emit("roomError", { type: "game_in_progress", message: "Cannot change rounds while game is in progress" });
+      return;
+    }
+
+    // Validate totalRounds (between 1 and 10)
+    const rounds = parseInt(totalRounds);
+    if (isNaN(rounds) || rounds < 1 || rounds > 10) {
+      console.error(`Invalid total rounds value: ${totalRounds}`);
+      return;
+    }
+
+    room.totalRounds = rounds;
+    console.log(`Total rounds set to ${rounds} for room ${roomId}`);
+    
+    // Broadcast the update to all users in the room
+    io.to(roomId).emit("totalRoundsUpdated", { totalRounds: rounds });
   });
 
   socket.on("wordChosen", ({ roomId, word }) => {
