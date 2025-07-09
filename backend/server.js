@@ -141,14 +141,67 @@ io.on("connection", (socket) => {
     socket.leave(roomId);
   });
 
-  socket.on("canvasData", (data) => {
-    const { roomId, imageData } = data;
-    if (!roomId || !imageData) {
-      console.error("Invalid data for canvasData event:", data);
+  // Optimized canvas sync with drawing commands instead of full images
+  socket.on("canvasDrawing", (data) => {
+    const { roomId, drawingCommands, timestamp } = data;
+    if (!roomId || !drawingCommands) {
+      console.error("Invalid data for canvasDrawing event:", data);
       return;
     }
 
-    socket.to(roomId).emit("canvasData", { imageData });
+    // Validate drawing commands structure
+    if (!Array.isArray(drawingCommands)) {
+      console.error("Drawing commands must be an array");
+      return;
+    }
+
+    // Add rate limiting per socket to prevent spam
+    const now = Date.now();
+    if (!socket.lastCanvasSync) socket.lastCanvasSync = 0;
+    
+    const timeSinceLastSync = now - socket.lastCanvasSync;
+    if (timeSinceLastSync < 16) { // Minimum 16ms between syncs (60fps max)
+      return;
+    }
+    socket.lastCanvasSync = now;
+
+    // Add server timestamp for sync ordering
+    const syncData = {
+      drawingCommands,
+      timestamp: timestamp || now,
+      socketId: socket.id
+    };
+
+    // Broadcast to other users in the room
+    socket.to(roomId).emit("canvasDrawing", syncData);
+  });
+
+  // Fallback full canvas sync for initial state or when needed
+  socket.on("canvasFullSync", (data) => {
+    const { roomId, imageData } = data;
+    if (!roomId || !imageData) {
+      console.error("Invalid data for canvasFullSync event:", data);
+      return;
+    }
+
+    // Basic validation - check if it's a valid base64 image
+    if (!imageData.startsWith('data:image/')) {
+      console.error("Invalid image data format");
+      return;
+    }
+
+    // More restrictive rate limiting for full syncs
+    const now = Date.now();
+    if (!socket.lastFullSync) socket.lastFullSync = 0;
+    
+    const timeSinceLastFullSync = now - socket.lastFullSync;
+    if (timeSinceLastFullSync < 100) { // Minimum 100ms between full syncs
+      return;
+    }
+    socket.lastFullSync = now;
+
+    // Broadcast to other users in the room
+    socket.to(roomId).emit("canvasFullSync", { imageData });
   });
 
   socket.on("sendMessage", (message) => {
