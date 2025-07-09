@@ -13,6 +13,161 @@ const wordsList = require("./words");
 
 const ROUND_TIME = 60;
 
+// Enhanced scoring system constants
+const SCORING_CONFIG = {
+  BASE_POINTS: 100,
+  TIME_MULTIPLIER: 3, // Increased from 2 for more dramatic time rewards
+  DIFFICULTY_MULTIPLIERS: {
+    easy: 1.0,      // 3-4 letter words
+    medium: 1.4,    // 5-6 letter words
+    hard: 1.8,      // 7-8 letter words
+    expert: 2.3,    // 9+ letter words
+    compound: 2.8   // Words with special characters or compound words
+  },
+  SPEED_THRESHOLDS: {
+    lightning: 10,  // Guessed within 10 seconds
+    fast: 20,       // Guessed within 20 seconds
+    quick: 35,      // Guessed within 35 seconds
+    normal: 50      // Guessed within 50 seconds
+  },
+  SPEED_MULTIPLIERS: {
+    lightning: 3.0,
+    fast: 2.2,
+    quick: 1.5,
+    normal: 1.2,
+    slow: 1.0
+  },
+  POSITION_BONUSES: {
+    1: 100,   // First place bonus
+    2: 60,    // Second place bonus
+    3: 30,    // Third place bonus
+    4: 15,    // Fourth place bonus
+    5: 10     // Fifth place bonus
+  },
+  HOST_BASE_POINTS: 60,
+  HOST_TIME_BONUS: 2.0,
+  HOST_QUALITY_BONUS: 75, // Bonus for getting many players to guess quickly
+  CONSECUTIVE_BONUS: 0.25, // 25% bonus per consecutive correct guess
+  STREAK_THRESHOLDS: {
+    small: 3,   // 3 consecutive rounds
+    medium: 5,  // 5 consecutive rounds
+    large: 8,   // 8 consecutive rounds
+    epic: 12    // 12 consecutive rounds
+  },
+  STREAK_MULTIPLIERS: {
+    small: 1.2,
+    medium: 1.5,
+    large: 2.0,
+    epic: 3.0
+  },
+  ROUND_PROGRESSION_BONUS: 0.1, // 10% bonus per round completed
+  PARTICIPATION_POINTS: 15,
+  COMEBACK_BONUS: 50, // Bonus for guessing after being behind
+  PERFECT_ROUND_BONUS: 200, // Bonus for host when everyone guesses correctly
+  MIN_GUESS_INTERVAL: 2000, // Minimum 2 seconds between guesses to prevent spam
+};
+
+// Enhanced word difficulty categorization
+const getWordDifficulty = (word) => {
+  const length = word.length;
+  const hasSpecialChars = /[^a-zA-Z]/.test(word);
+  const isCompound = word.includes('-') || word.includes(' ') || /[A-Z].*[A-Z]/.test(word);
+  
+  if (hasSpecialChars || isCompound) return 'compound';
+  if (length >= 9) return 'expert';
+  if (length >= 7) return 'hard';
+  if (length >= 5) return 'medium';
+  return 'easy';
+};
+
+// Get speed category based on guess time
+const getSpeedCategory = (timeTaken) => {
+  if (timeTaken <= SCORING_CONFIG.SPEED_THRESHOLDS.lightning) return 'lightning';
+  if (timeTaken <= SCORING_CONFIG.SPEED_THRESHOLDS.fast) return 'fast';
+  if (timeTaken <= SCORING_CONFIG.SPEED_THRESHOLDS.quick) return 'quick';
+  if (timeTaken <= SCORING_CONFIG.SPEED_THRESHOLDS.normal) return 'normal';
+  return 'slow';
+};
+
+// Get streak multiplier based on consecutive correct guesses
+const getStreakMultiplier = (consecutiveCount) => {
+  if (consecutiveCount >= SCORING_CONFIG.STREAK_THRESHOLDS.epic) return SCORING_CONFIG.STREAK_MULTIPLIERS.epic;
+  if (consecutiveCount >= SCORING_CONFIG.STREAK_THRESHOLDS.large) return SCORING_CONFIG.STREAK_MULTIPLIERS.large;
+  if (consecutiveCount >= SCORING_CONFIG.STREAK_THRESHOLDS.medium) return SCORING_CONFIG.STREAK_MULTIPLIERS.medium;
+  if (consecutiveCount >= SCORING_CONFIG.STREAK_THRESHOLDS.small) return SCORING_CONFIG.STREAK_MULTIPLIERS.small;
+  return 1.0;
+};
+
+// Enhanced scoring calculation
+const calculatePlayerScore = (timeRemaining, wordDifficulty, isFirstGuess = false, consecutiveCount = 0, guessPosition = 1, currentRound = 1) => {
+  const timeTaken = ROUND_TIME - timeRemaining;
+  const difficultyMultiplier = SCORING_CONFIG.DIFFICULTY_MULTIPLIERS[wordDifficulty];
+  const speedCategory = getSpeedCategory(timeTaken);
+  const speedMultiplier = SCORING_CONFIG.SPEED_MULTIPLIERS[speedCategory];
+  const streakMultiplier = getStreakMultiplier(consecutiveCount);
+  
+  // Base score calculation
+  const baseScore = SCORING_CONFIG.BASE_POINTS * difficultyMultiplier;
+  
+  // Time bonus (more generous for faster guesses)
+  const timeBonus = Math.max(0, timeRemaining * SCORING_CONFIG.TIME_MULTIPLIER * speedMultiplier);
+  
+  // Position bonus (diminishing rewards for later guesses)
+  const positionBonus = SCORING_CONFIG.POSITION_BONUSES[guessPosition] || 0;
+  
+  // Consecutive bonus
+  const consecutiveBonus = baseScore * consecutiveCount * SCORING_CONFIG.CONSECUTIVE_BONUS;
+  
+  // Round progression bonus (games get more rewarding as they progress)
+  const roundBonus = baseScore * (currentRound - 1) * SCORING_CONFIG.ROUND_PROGRESSION_BONUS;
+  
+  // Apply all multipliers
+  let totalScore = (baseScore + timeBonus + positionBonus + consecutiveBonus + roundBonus) * streakMultiplier;
+  
+  return {
+    total: Math.round(totalScore),
+    breakdown: {
+      base: Math.round(baseScore),
+      timeBonus: Math.round(timeBonus),
+      positionBonus,
+      consecutiveBonus: Math.round(consecutiveBonus),
+      roundBonus: Math.round(roundBonus),
+      speedCategory,
+      speedMultiplier,
+      streakMultiplier,
+      difficulty: wordDifficulty,
+      timeTaken,
+      guessPosition
+    }
+  };
+};
+
+// Enhanced host scoring calculation
+const calculateHostScore = (correctGuesses, totalPlayers, wordDifficulty) => {
+  if (correctGuesses.length === 0) return { total: 0, breakdown: {} };
+  
+  const difficultyMultiplier = SCORING_CONFIG.DIFFICULTY_MULTIPLIERS[wordDifficulty];
+  const participationRate = correctGuesses.length / (totalPlayers - 1); // Exclude host from count
+  const avgTime = correctGuesses.reduce((sum, guess) => sum + guess.timeTaken, 0) / correctGuesses.length;
+  
+  const basePoints = SCORING_CONFIG.HOST_BASE_POINTS * difficultyMultiplier;
+  const timeBonus = Math.max(0, (ROUND_TIME - avgTime) * SCORING_CONFIG.HOST_TIME_BONUS);
+  const participationBonus = participationRate * 50; // Bonus for getting more players to guess
+  
+  const totalScore = Math.round(basePoints + timeBonus + participationBonus);
+  
+  return {
+    total: totalScore,
+    breakdown: {
+      base: Math.round(basePoints),
+      timeBonus: Math.round(timeBonus),
+      participationBonus: Math.round(participationBonus),
+      participationRate: Math.round(participationRate * 100),
+      difficulty: wordDifficulty
+    }
+  };
+};
+
 app.get("/", (req, res) => {
   res.send("Server is running");
 });
@@ -79,20 +234,48 @@ const changeHost = (roomId) => {
     io.to(roomId).emit("stopTimer");
     io.to(roomId).emit("resetCanvas");
 
-    const correctGuesses = room.correctGuesses;
-    if (correctGuesses.length > 0) {
-      const totalTimeTaken = correctGuesses.reduce((sum, guess) => sum + guess.timeTaken, 0);
-      const averageTimeTaken = totalTimeTaken / correctGuesses.length;
-      const hostPoints = averageTimeTaken * 10;
-
+    // Enhanced host scoring
+    const correctGuesses = room.correctGuesses || [];
+    const currentWord = room.currentWord;
+    
+    if (correctGuesses.length > 0 && currentWord) {
+      const wordDifficulty = getWordDifficulty(currentWord);
+      const hostScore = calculateHostScore(correctGuesses, users.length, wordDifficulty);
+      
       const host = users[currentHostIndex];
-      host.score = (host.score || 0) + hostPoints;
-
-      io.to(roomId).emit(
-        "updateScores",
-        users.map(({ userId, score }) => ({ userId, score }))
-      );
+      host.score = (host.score || 0) + hostScore.total;
+      
+      // Broadcast detailed scoring information
+      io.to(roomId).emit("hostScoring", {
+        hostName: host.name,
+        score: hostScore,
+        word: currentWord
+      });
+    } else {
+      // Give participation points to host even if no one guessed
+      const host = users[currentHostIndex];
+      host.score = (host.score || 0) + SCORING_CONFIG.PARTICIPATION_POINTS;
+      
+      io.to(roomId).emit("hostScoring", {
+        hostName: host.name,
+        score: { total: SCORING_CONFIG.PARTICIPATION_POINTS, breakdown: { participation: SCORING_CONFIG.PARTICIPATION_POINTS } },
+        word: currentWord || "Unknown"
+      });
     }
+
+    // Reset room state for next round
+    room.correctGuesses = [];
+    room.currentWord = null;
+    room.firstGuessUserId = null;
+    room.guessPositions = [];
+
+    // Reset streaks for users who didn't guess correctly
+    resetAllStreaks(roomId);
+
+    io.to(roomId).emit(
+      "updateScores",
+      users.map(({ userId, score, name }) => ({ userId, score, name }))
+    );
 
     stopHostTimer(roomId);
   } else {
@@ -120,7 +303,17 @@ io.on("connection", (socket) => {
       socket.join(roomId);
 
       if (!rooms[roomId]) {
-        rooms[roomId] = { users: [], round: 1, correctGuesses: [] };
+        rooms[roomId] = { 
+          users: [], 
+          round: 1, 
+          correctGuesses: [],
+          currentWord: null,
+          firstGuessUserId: null,
+          consecutiveGuesses: {}, // Track consecutive correct guesses per user
+          lastGuessTimestamps: {}, // Anti-spam protection
+          guessPositions: [], // Track order of correct guesses
+          totalRounds: 0
+        };
       }
 
       // Check if user is already in the room
@@ -282,32 +475,58 @@ io.on("connection", (socket) => {
       return;
     }
 
+    // Store the chosen word for scoring calculations
+    if (rooms[roomId]) {
+      rooms[roomId].currentWord = word;
+      rooms[roomId].correctGuesses = [];
+      rooms[roomId].firstGuessUserId = null;
+      rooms[roomId].guessPositions = [];
+    }
+
     io.to(roomId).emit("chosenWord", word);
   });
 
-  const updateAndBroadcastScores = (roomId, userId, points, timeTaken = null) => {
+  const updateAndBroadcastScores = (roomId, userId, scoreData, timeTaken = null) => {
     if (!rooms[roomId] || !rooms[roomId].users) {
       console.error(`Room ${roomId} does not exist or has no users.`);
       return;
     }
 
-    const users = rooms[roomId].users;
+    const room = rooms[roomId];
+    const users = room.users;
     const user = users.find((user) => user.userId === userId);
+    
     if (user) {
-      user.score = (user.score || 0) + points;
+      user.score = (user.score || 0) + scoreData.total;
 
       if (timeTaken !== null) {
-        rooms[roomId].correctGuesses.push({ userId, timeTaken });
+        room.correctGuesses.push({ userId, timeTaken });
+        
+        // Track consecutive guesses
+        if (!room.consecutiveGuesses[userId]) {
+          room.consecutiveGuesses[userId] = 0;
+        }
+        room.consecutiveGuesses[userId]++;
       }
+
+      // Broadcast detailed scoring information
+      io.to(roomId).emit("playerScoring", {
+        userId,
+        userName: user.name,
+        scoreData,
+        newTotal: user.score
+      });
 
       io.to(roomId).emit(
         "updateScores",
-        users.map(({ userId, score }) => ({ userId, score }))
+        users.map(({ userId, score, name }) => ({ userId, score, name }))
       );
 
       const host = users.find((user) => user.host);
       const nonHostUsers = users.filter((user) => !user.host);
-      const allNonHostUsersGuessed = nonHostUsers.every((user) => rooms[roomId].correctGuesses.some((guess) => guess.userId === user.userId));
+      const allNonHostUsersGuessed = nonHostUsers.every((user) => 
+        room.correctGuesses.some((guess) => guess.userId === user.userId)
+      );
 
       if (allNonHostUsersGuessed && host) {
         changeHost(roomId);
@@ -323,11 +542,64 @@ io.on("connection", (socket) => {
       return;
     }
 
-    const remainingTime = rooms[roomId]?.remainingTime || 0;
-    const timeTaken = ROUND_TIME - remainingTime;
-    const points = remainingTime * 10;
+    const room = rooms[roomId];
+    if (!room) {
+      console.error(`Room ${roomId} does not exist.`);
+      return;
+    }
 
-    updateAndBroadcastScores(roomId, userId, points, timeTaken);
+    // Anti-spam protection
+    const now = Date.now();
+    const lastGuessTime = room.lastGuessTimestamps[userId] || 0;
+    if (now - lastGuessTime < SCORING_CONFIG.MIN_GUESS_INTERVAL) {
+      console.log(`User ${userId} guessing too quickly, ignoring`);
+      return;
+    }
+    room.lastGuessTimestamps[userId] = now;
+
+    // Check if user already guessed correctly this round
+    if (room.correctGuesses.some(guess => guess.userId === userId)) {
+      console.log(`User ${userId} already guessed correctly this round`);
+      return;
+    }
+
+    const remainingTime = room.remainingTime || 0;
+    const timeTaken = ROUND_TIME - remainingTime;
+    const currentWord = room.currentWord;
+    
+    if (!currentWord) {
+      console.error("No current word set for scoring");
+      return;
+    }
+
+    // Determine if this is the first guess and track position
+    const isFirstGuess = !room.firstGuessUserId;
+    if (isFirstGuess) {
+      room.firstGuessUserId = userId;
+    }
+    
+    // Track guess position (1st, 2nd, 3rd, etc.)
+    const guessPosition = room.guessPositions.length + 1;
+    room.guessPositions.push(userId);
+
+    // Get consecutive guess count for this user
+    const consecutiveCount = room.consecutiveGuesses[userId] || 0;
+    
+    // Calculate enhanced score with new parameters
+    const wordDifficulty = getWordDifficulty(currentWord);
+    const scoreData = calculatePlayerScore(
+      remainingTime, 
+      wordDifficulty, 
+      isFirstGuess, 
+      consecutiveCount, 
+      guessPosition, 
+      room.round || 1
+    );
+
+    updateAndBroadcastScores(roomId, userId, scoreData, timeTaken);
+    
+    // Emit the correct guess event for UI updates
+    io.to(roomId).emit("correctGuess", userId);
   });
 
   socket.on("disconnecting", () => {
@@ -375,6 +647,31 @@ io.on("connection", (socket) => {
     console.log(`A user disconnected: ${reason}`);
   });
 });
+
+// Handle consecutive streak management
+const handleStreakBreak = (roomId, userId) => {
+  const room = rooms[roomId];
+  if (!room) return;
+  
+  // Reset consecutive count for users who didn't guess correctly
+  if (room.consecutiveGuesses[userId]) {
+    room.consecutiveGuesses[userId] = 0;
+  }
+};
+
+// Reset all user streaks when round ends
+const resetAllStreaks = (roomId) => {
+  const room = rooms[roomId];
+  if (!room) return;
+  
+  // Reset streaks for users who didn't guess correctly this round
+  const correctUserIds = room.correctGuesses.map(guess => guess.userId);
+  room.users.forEach(user => {
+    if (!correctUserIds.includes(user.userId)) {
+      room.consecutiveGuesses[user.userId] = 0;
+    }
+  });
+};
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {

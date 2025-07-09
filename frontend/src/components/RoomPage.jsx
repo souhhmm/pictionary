@@ -30,6 +30,8 @@ export default function RoomPage({ socket, user }) {
   const [userGuessed, setUserGuessed] = useState(false);
   const [scores, setScores] = useState({});
   const [currentRound, setCurrentRound] = useState(1);
+  const [lastScoringEvent, setLastScoringEvent] = useState(null);
+  const [showScoreBreakdown, setShowScoreBreakdown] = useState(false);
   const navigate = useNavigate();
   const canvasRef = useRef(null);
   const timerRef = useRef(null);
@@ -181,13 +183,56 @@ export default function RoomPage({ socket, user }) {
       try {
         if (Array.isArray(updatedScores)) {
           const newScores = {};
-          updatedScores.forEach(({ userId, score }) => {
-            newScores[userId] = score;
+          updatedScores.forEach(({ userId, score, name }) => {
+            newScores[userId] = { score, name };
           });
           setScores(newScores);
         }
       } catch (error) {
         console.error("Error updating scores:", error);
+      }
+    };
+
+    const handlePlayerScoring = (scoringData) => {
+      try {
+        const { userId, userName, scoreData, newTotal } = scoringData;
+        setLastScoringEvent({
+          type: 'player',
+          userId,
+          userName,
+          scoreData,
+          newTotal,
+          timestamp: Date.now()
+        });
+        setShowScoreBreakdown(true);
+        
+        // Auto-hide score breakdown after 5 seconds
+        setTimeout(() => {
+          setShowScoreBreakdown(false);
+        }, 5000);
+      } catch (error) {
+        console.error("Error handling player scoring:", error);
+      }
+    };
+
+    const handleHostScoring = (scoringData) => {
+      try {
+        const { hostName, score, word } = scoringData;
+        setLastScoringEvent({
+          type: 'host',
+          hostName,
+          score,
+          word,
+          timestamp: Date.now()
+        });
+        setShowScoreBreakdown(true);
+        
+        // Auto-hide score breakdown after 5 seconds
+        setTimeout(() => {
+          setShowScoreBreakdown(false);
+        }, 5000);
+      } catch (error) {
+        console.error("Error handling host scoring:", error);
       }
     };
 
@@ -278,6 +323,8 @@ export default function RoomPage({ socket, user }) {
     socket.on("chosenWord", handleChosenWord);
     socket.on("correctGuess", handleCorrectGuess);
     socket.on("updateScores", handleUpdateScores);
+    socket.on("playerScoring", handlePlayerScoring);
+    socket.on("hostScoring", handleHostScoring);
     socket.on("roundUpdate", handleRoundUpdate);
     socket.on("error", handleSocketError);
     socket.on("disconnect", handleSocketDisconnect);
@@ -326,6 +373,8 @@ export default function RoomPage({ socket, user }) {
         socket.off("chosenWord", handleChosenWord);
         socket.off("correctGuess", handleCorrectGuess);
         socket.off("updateScores", handleUpdateScores);
+        socket.off("playerScoring", handlePlayerScoring);
+        socket.off("hostScoring", handleHostScoring);
         socket.off("roundUpdate", handleRoundUpdate);
         socket.off("error", handleSocketError);
         socket.off("disconnect", handleSocketDisconnect);
@@ -344,7 +393,10 @@ export default function RoomPage({ socket, user }) {
   const initializeScores = (users) => {
     const initialScores = {};
     users.forEach((user) => {
-      initialScores[user.userId] = scores[user.userId] || 0;
+      initialScores[user.userId] = {
+        score: scores[user.userId]?.score || 0,
+        name: user.name
+      };
     });
     setScores((prevScores) => ({
       ...prevScores,
@@ -527,7 +579,9 @@ export default function RoomPage({ socket, user }) {
                   <div className="text-xs text-gray-500">{user.host ? "Drawing" : "Guessing"}</div>
                 </div>
               </div>
-              <Badge variant="outline">Score: {scores[user.userId] || 0}</Badge>
+              <Badge variant="outline" className="text-lg px-3 py-1">
+                {scores[user.userId]?.score || 0} pts
+              </Badge>
             </div>
           ))}
         </div>
