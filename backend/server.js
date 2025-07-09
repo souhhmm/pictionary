@@ -112,33 +112,83 @@ io.on("connection", (socket) => {
     const { name, userId, roomId, host } = data;
     if (!roomId || !name || !userId) {
       console.error("Invalid data for userJoined event:", data);
+      socket.emit("roomError", { type: "invalid_data", message: "Invalid room data" });
       return;
     }
 
-    socket.join(roomId);
+    try {
+      socket.join(roomId);
 
-    if (!rooms[roomId]) {
-      rooms[roomId] = { users: [], round: 1, correctGuesses: [] };
+      if (!rooms[roomId]) {
+        rooms[roomId] = { users: [], round: 1, correctGuesses: [] };
+      }
+
+      // Check if user is already in the room
+      const existingUser = rooms[roomId].users.find(user => user.userId === userId);
+      if (existingUser) {
+        console.log(`User ${userId} already exists in room ${roomId}, updating socket ID`);
+        existingUser.socketId = socket.id;
+      } else {
+        rooms[roomId].users.push({ name, userId, host, score: 0, socketId: socket.id });
+      }
+
+      console.log(`User joined: ${JSON.stringify(data)}`);
+      console.log(`Users in room ${roomId}: ${JSON.stringify(rooms[roomId].users)}`);
+
+      io.to(roomId).emit("updateUsersOnline", rooms[roomId].users);
+    } catch (error) {
+      console.error("Error in userJoined:", error);
+      socket.emit("roomError", { type: "join_failed", message: "Failed to join room" });
     }
-
-    rooms[roomId].users.push({ name, userId, host, score: 0, socketId: socket.id });
-
-    console.log(`User joined: ${JSON.stringify(data)}`);
-    console.log(`Users in room ${roomId}: ${JSON.stringify(rooms[roomId].users)}`);
-
-    io.to(roomId).emit("updateUsersOnline", rooms[roomId].users);
   });
 
   socket.on("leaveRoom", (roomId) => {
-    if (rooms[roomId]) {
-      rooms[roomId].users = rooms[roomId].users.filter((user) => user.socketId !== socket.id);
-      if (rooms[roomId].users.length === 0) {
-        delete rooms[roomId];
-      } else {
-        io.to(roomId).emit("updateUsersOnline", rooms[roomId].users);
+    try {
+      if (!roomId) {
+        console.error("No roomId provided for leaveRoom event");
+        return;
       }
+
+      if (rooms[roomId]) {
+        const leavingUser = rooms[roomId].users.find(user => user.socketId === socket.id);
+        
+        rooms[roomId].users = rooms[roomId].users.filter((user) => user.socketId !== socket.id);
+        
+        if (leavingUser) {
+          console.log(`User ${leavingUser.name} left room ${roomId}`);
+          // Notify other users that someone left
+          socket.to(roomId).emit("userLeft", leavingUser);
+        }
+        
+        if (rooms[roomId].users.length === 0) {
+          // Clean up room data when empty
+          stopHostTimer(roomId);
+          delete rooms[roomId];
+          console.log(`Room ${roomId} deleted - no users remaining`);
+        } else {
+          // Check if the leaving user was the host
+          const wasHost = leavingUser && leavingUser.host;
+          if (wasHost && rooms[roomId].users.length > 0) {
+            // Make the first remaining user the new host
+            rooms[roomId].users[0].host = true;
+            console.log(`New host assigned: ${rooms[roomId].users[0].name}`);
+            io.to(roomId).emit("hostChanged", rooms[roomId].users[0]);
+            io.to(roomId).emit("stopTimer");
+            io.to(roomId).emit("resetCanvas");
+          }
+          
+          io.to(roomId).emit("updateUsersOnline", rooms[roomId].users);
+        }
+      } else {
+        console.warn(`User tried to leave non-existent room: ${roomId}`);
+      }
+      
+      socket.leave(roomId);
+    } catch (error) {
+      console.error("Error in leaveRoom:", error);
+      // Still try to leave the room even if there's an error
+      socket.leave(roomId);
     }
-    socket.leave(roomId);
   });
 
   // Optimized canvas sync with drawing commands instead of full images
@@ -281,21 +331,48 @@ io.on("connection", (socket) => {
   });
 
   socket.on("disconnecting", () => {
-    const socketRooms = Array.from(socket.rooms);
-    socketRooms.forEach((roomId) => {
-      if (roomId !== socket.id && rooms[roomId]) {
-        rooms[roomId].users = rooms[roomId].users.filter((user) => user.socketId !== socket.id);
-        if (rooms[roomId].users.length === 0) {
-          delete rooms[roomId];
-        } else {
-          io.to(roomId).emit("updateUsersOnline", rooms[roomId].users);
+    try {
+      const socketRooms = Array.from(socket.rooms);
+      socketRooms.forEach((roomId) => {
+        if (roomId !== socket.id && rooms[roomId]) {
+          const disconnectingUser = rooms[roomId].users.find(user => user.socketId === socket.id);
+          
+          rooms[roomId].users = rooms[roomId].users.filter((user) => user.socketId !== socket.id);
+          
+          if (disconnectingUser) {
+            console.log(`User ${disconnectingUser.name} disconnected from room ${roomId}`);
+            // Notify other users that someone disconnected
+            socket.to(roomId).emit("userLeft", disconnectingUser);
+          }
+          
+          if (rooms[roomId].users.length === 0) {
+            // Clean up room data when empty
+            stopHostTimer(roomId);
+            delete rooms[roomId];
+            console.log(`Room ${roomId} deleted - all users disconnected`);
+          } else {
+            // Check if the disconnecting user was the host
+            const wasHost = disconnectingUser && disconnectingUser.host;
+            if (wasHost && rooms[roomId].users.length > 0) {
+              // Make the first remaining user the new host
+              rooms[roomId].users[0].host = true;
+              console.log(`New host assigned after disconnect: ${rooms[roomId].users[0].name}`);
+              io.to(roomId).emit("hostChanged", rooms[roomId].users[0]);
+              io.to(roomId).emit("stopTimer");
+              io.to(roomId).emit("resetCanvas");
+            }
+            
+            io.to(roomId).emit("updateUsersOnline", rooms[roomId].users);
+          }
         }
-      }
-    });
+      });
+    } catch (error) {
+      console.error("Error during socket disconnecting:", error);
+    }
   });
 
-  socket.on("disconnect", () => {
-    console.log("A user disconnected");
+  socket.on("disconnect", (reason) => {
+    console.log(`A user disconnected: ${reason}`);
   });
 });
 
