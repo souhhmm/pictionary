@@ -35,75 +35,311 @@ export default function RoomPage({ socket, user }) {
   const timerRef = useRef(null);
 
   useEffect(() => {
-    const roomData = {
-      name: user.name,
-      userId: user.userId,
-      roomId,
-      host: user.host,
-    };
-    socket.emit("userJoined", roomData);
-    initializeScores(users);
+    // Check if user and socket exist before proceeding
+    if (!user || !socket) {
+      console.error("User or socket not available");
+      navigate("/");
+      return;
+    }
 
-    socket.on("updateUsersOnline", (updatedUsers) => {
-      setUsers(updatedUsers);
-    });
+    // Check if socket is already connected or wait for connection
+    const ensureSocketConnection = () => {
+      return new Promise((resolve, reject) => {
+        if (socket.connected) {
+          resolve();
+        } else {
+          const timeout = setTimeout(() => {
+            reject(new Error("Socket connection timeout"));
+          }, 5000);
 
-    socket.on("receiveMessage", (message) => {
-      setMessages((prevMessages) => [...prevMessages, message]);
-    });
+          socket.once("connect", () => {
+            clearTimeout(timeout);
+            resolve();
+          });
 
-    socket.on("hostChanged", (newHost) => {
-      setIsHost(newHost.userId === user.userId);
-      resetRound();
-      alert(`Host changed to ${newHost.name}`);
-    });
-
-    socket.on("timerUpdate", (remainingTime) => {
-      setTimeLeft(remainingTime);
-    });
-
-    socket.on("startTimer", () => {
-      setShowTimer(true);
-    });
-
-    socket.on("stopTimer", () => {
-      setShowTimer(false);
-    });
-
-    socket.on("randomWords", (words) => {
-      setRandomWords(words);
-    });
-
-    socket.on("chosenWord", (word) => {
-      setChosenWord(word);
-      setUserGuessed(false);
-    });
-
-    socket.on("correctGuess", (guesserId) => {
-      if (guesserId === user.userId) {
-        setUserGuessed(true);
-        // updateScore(user.userId, 10);
-      }
-    });
-
-    socket.on("updateScores", (updatedScores) => {
-      const newScores = {};
-      updatedScores.forEach(({ userId, score }) => {
-        newScores[userId] = score;
+          socket.once("connect_error", (error) => {
+            clearTimeout(timeout);
+            reject(error);
+          });
+        }
       });
-      setScores(newScores);
-    });
+    };
 
-    socket.on("roundUpdate", (round) => {
-      setCurrentRound(round);
-    });
+    const initializeRoom = async () => {
+      try {
+        await ensureSocketConnection();
+        
+        const roomData = {
+          name: user.name,
+          userId: user.userId,
+          roomId,
+          host: user.host,
+        };
+        
+        socket.emit("userJoined", roomData);
+        initializeScores(users);
+      } catch (error) {
+        console.error("Error connecting to room:", error);
+        alert("Failed to connect to the room. Please try again.");
+        navigate("/");
+        return;
+      }
+    };
+
+    initializeRoom();
+
+    const handleUpdateUsersOnline = (updatedUsers) => {
+      try {
+        if (Array.isArray(updatedUsers)) {
+          setUsers(updatedUsers);
+        }
+      } catch (error) {
+        console.error("Error updating users:", error);
+      }
+    };
+
+    const handleReceiveMessage = (message) => {
+      try {
+        if (message && message.user && message.text) {
+          setMessages((prevMessages) => [...prevMessages, message]);
+        }
+      } catch (error) {
+        console.error("Error receiving message:", error);
+      }
+    };
+
+    const handleHostChanged = (newHost) => {
+      try {
+        if (newHost && newHost.userId && user?.userId) {
+          setIsHost(newHost.userId === user.userId);
+          resetRound();
+          alert(`Host changed to ${newHost.name}`);
+        }
+      } catch (error) {
+        console.error("Error handling host change:", error);
+      }
+    };
+
+    const handleTimerUpdate = (remainingTime) => {
+      try {
+        if (typeof remainingTime === 'number') {
+          setTimeLeft(remainingTime);
+        }
+      } catch (error) {
+        console.error("Error updating timer:", error);
+      }
+    };
+
+    const handleStartTimer = () => {
+      try {
+        setShowTimer(true);
+      } catch (error) {
+        console.error("Error starting timer:", error);
+      }
+    };
+
+    const handleStopTimer = () => {
+      try {
+        setShowTimer(false);
+      } catch (error) {
+        console.error("Error stopping timer:", error);
+      }
+    };
+
+    const handleRandomWords = (words) => {
+      try {
+        if (Array.isArray(words)) {
+          setRandomWords(words);
+        }
+      } catch (error) {
+        console.error("Error setting random words:", error);
+      }
+    };
+
+    const handleChosenWord = (word) => {
+      try {
+        if (typeof word === 'string') {
+          setChosenWord(word);
+          setUserGuessed(false);
+        }
+      } catch (error) {
+        console.error("Error setting chosen word:", error);
+      }
+    };
+
+    const handleCorrectGuess = (guesserId) => {
+      try {
+        if (guesserId === user?.userId) {
+          setUserGuessed(true);
+        }
+      } catch (error) {
+        console.error("Error handling correct guess:", error);
+      }
+    };
+
+    const handleUpdateScores = (updatedScores) => {
+      try {
+        if (Array.isArray(updatedScores)) {
+          const newScores = {};
+          updatedScores.forEach(({ userId, score }) => {
+            newScores[userId] = score;
+          });
+          setScores(newScores);
+        }
+      } catch (error) {
+        console.error("Error updating scores:", error);
+      }
+    };
+
+    const handleRoundUpdate = (round) => {
+      try {
+        if (typeof round === 'number') {
+          setCurrentRound(round);
+        }
+      } catch (error) {
+        console.error("Error updating round:", error);
+      }
+    };
+
+    // Add error handling for socket connection
+    const handleSocketError = (error) => {
+      console.error("Socket error:", error);
+      alert("Connection error occurred. You may be disconnected from the room.");
+    };
+
+    const handleSocketDisconnect = (reason) => {
+      console.log("Socket disconnected:", reason);
+      
+      // Handle different disconnect reasons
+      if (reason === "io server disconnect") {
+        // Server disconnected the socket
+        alert("You have been disconnected from the room by the server.");
+        navigate("/");
+      } else if (reason === "io client disconnect") {
+        // Client disconnected intentionally
+        console.log("Client disconnected intentionally");
+      } else {
+        // Other disconnect reasons (network issues, etc.)
+        alert("Connection lost. Please refresh the page or rejoin the room.");
+        navigate("/");
+      }
+    };
+
+    // Handle room-specific errors
+    const handleRoomError = (error) => {
+      console.error("Room error:", error);
+      if (error.type === "room_not_found") {
+        alert("The room you're trying to join no longer exists.");
+        navigate("/");
+      } else if (error.type === "user_not_found") {
+        alert("User session expired. Please rejoin the room.");
+        navigate("/");
+      } else {
+        alert("An error occurred in the room. Please try again.");
+      }
+    };
+
+    // Handle user leaving (for other users)
+    const handleUserLeft = (leftUser) => {
+      try {
+        if (leftUser && leftUser.name) {
+          console.log(`User ${leftUser.name} left the room`);
+          // Optionally show a message that user left
+        }
+      } catch (error) {
+        console.error("Error handling user left:", error);
+      }
+    };
+
+    // Handle reconnection
+    const handleReconnect = () => {
+      try {
+        console.log("Socket reconnected, rejoining room");
+        const roomData = {
+          name: user.name,
+          userId: user.userId,
+          roomId,
+          host: user.host,
+        };
+        socket.emit("userJoined", roomData);
+      } catch (error) {
+        console.error("Error during reconnection:", error);
+      }
+    };
+
+    // Set up socket event listeners with error handling
+    socket.on("updateUsersOnline", handleUpdateUsersOnline);
+    socket.on("receiveMessage", handleReceiveMessage);
+    socket.on("hostChanged", handleHostChanged);
+    socket.on("timerUpdate", handleTimerUpdate);
+    socket.on("startTimer", handleStartTimer);
+    socket.on("stopTimer", handleStopTimer);
+    socket.on("randomWords", handleRandomWords);
+    socket.on("chosenWord", handleChosenWord);
+    socket.on("correctGuess", handleCorrectGuess);
+    socket.on("updateScores", handleUpdateScores);
+    socket.on("roundUpdate", handleRoundUpdate);
+    socket.on("error", handleSocketError);
+    socket.on("disconnect", handleSocketDisconnect);
+    socket.on("roomError", handleRoomError);
+    socket.on("userLeft", handleUserLeft);
+    socket.on("reconnect", handleReconnect);
+    socket.on("reconnect", handleReconnect);
+
+    // Handle page refresh/close events
+    const handleBeforeUnload = (event) => {
+      try {
+        if (socket && socket.connected) {
+          socket.emit("leaveRoom", roomId);
+        }
+      } catch (error) {
+        console.error("Error during page unload:", error);
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
 
     return () => {
-      socket.emit("leaveRoom", roomId);
-      socket.off("roundUpdate");
-      socket.disconnect();
+      try {
+        // Remove page unload listener
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+        
+        // Clean up timers
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+        
+        // Only emit leaveRoom if socket is still connected
+        if (socket && socket.connected) {
+          socket.emit("leaveRoom", roomId);
+        }
+        
+        // Remove all event listeners
+        socket.off("updateUsersOnline", handleUpdateUsersOnline);
+        socket.off("receiveMessage", handleReceiveMessage);
+        socket.off("hostChanged", handleHostChanged);
+        socket.off("timerUpdate", handleTimerUpdate);
+        socket.off("startTimer", handleStartTimer);
+        socket.off("stopTimer", handleStopTimer);
+        socket.off("randomWords", handleRandomWords);
+        socket.off("chosenWord", handleChosenWord);
+        socket.off("correctGuess", handleCorrectGuess);
+        socket.off("updateScores", handleUpdateScores);
+        socket.off("roundUpdate", handleRoundUpdate);
+        socket.off("error", handleSocketError);
+        socket.off("disconnect", handleSocketDisconnect);
+        socket.off("roomError", handleRoomError);
+        socket.off("userLeft", handleUserLeft);
+        socket.off("reconnect", handleReconnect);
+        socket.off("reconnect", handleReconnect);
+        
+        // Don't disconnect the socket as it might be used elsewhere
+      } catch (error) {
+        console.error("Error during cleanup:", error);
+      }
     };
-  }, [roomId, socket, user]);
+  }, [roomId, socket, user, navigate]);
 
   const initializeScores = (users) => {
     const initialScores = {};
@@ -124,65 +360,140 @@ export default function RoomPage({ socket, user }) {
   // };
 
   const resetRound = () => {
-    clearInterval(timerRef.current);
-    setTimeLeft(ROUND_TIME);
-    canvasRef.current.resetCanvas();
-    setTool("pencil");
-    setColor("#000000");
-    setShowTimer(false);
-    setShowStartButton(true);
-    setRandomWords([]);
-    setChosenWord("");
-    setUserGuessed(false);
+    try {
+      // Clear timer safely
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      
+      setTimeLeft(ROUND_TIME);
+      
+      // Reset canvas safely
+      if (canvasRef.current && canvasRef.current.resetCanvas) {
+        canvasRef.current.resetCanvas();
+      }
+      
+      setTool("pencil");
+      setColor("#000000");
+      setShowTimer(false);
+      setShowStartButton(true);
+      setRandomWords([]);
+      setChosenWord("");
+      setUserGuessed(false);
+    } catch (error) {
+      console.error("Error resetting round:", error);
+    }
   };
 
   const startRound = () => {
-    socket.emit("startRound", roomId);
-    setShowStartButton(false);
+    try {
+      if (socket && socket.connected) {
+        socket.emit("startRound", roomId);
+        setShowStartButton(false);
+      }
+    } catch (error) {
+      console.error("Error starting round:", error);
+    }
   };
 
   const handleLeaveRoom = () => {
-    socket.emit("leaveRoom", roomId);
-    navigate("/");
+    try {
+      // Set a flag to prevent multiple leave attempts
+      if (window.leavingRoom) {
+        return;
+      }
+      window.leavingRoom = true;
+      
+      // Clean up timers
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      
+      // Only emit if socket is connected
+      if (socket && socket.connected) {
+        socket.emit("leaveRoom", roomId);
+        
+        // Wait a bit for the server to process the leave request
+        setTimeout(() => {
+          window.leavingRoom = false;
+          navigate("/");
+        }, 100);
+      } else {
+        // If socket is not connected, just navigate
+        window.leavingRoom = false;
+        navigate("/");
+      }
+    } catch (error) {
+      console.error("Error leaving room:", error);
+      // Still try to navigate even if there's an error
+      window.leavingRoom = false;
+      navigate("/");
+    }
   };
 
   const handleToolChange = (value) => {
-    setTool(value);
+    try {
+      setTool(value);
+    } catch (error) {
+      console.error("Error changing tool:", error);
+    }
   };
 
   const handleColorChange = (event) => {
-    setColor(event.target.value);
+    try {
+      setColor(event.target.value);
+    } catch (error) {
+      console.error("Error changing color:", error);
+    }
   };
 
   const handleSendMessage = (e) => {
     e.preventDefault();
-    const isCorrectGuess = message.trim().toLowerCase() === chosenWord.trim().toLowerCase();
-    if (isCorrectGuess) {
-      setUserGuessed(true);
-      socket.emit("correctGuess", { roomId, userId: user.userId });
-      const newMessage = {
-        user: user.name,
-        text: "Correctly guessed!",
-        roomId,
-        highlight: isCorrectGuess,
-      };
-      socket.emit("sendMessage", newMessage);
-    } else {
-      const newMessage = {
-        user: user.name,
-        text: isCorrectGuess ? "Correctly guessed!" : message,
-        roomId,
-        highlight: isCorrectGuess,
-      };
-      socket.emit("sendMessage", newMessage);
+    
+    try {
+      if (!message.trim() || !socket || !socket.connected) {
+        return;
+      }
+      
+      const isCorrectGuess = message.trim().toLowerCase() === chosenWord.trim().toLowerCase();
+      if (isCorrectGuess) {
+        setUserGuessed(true);
+        socket.emit("correctGuess", { roomId, userId: user.userId });
+        const newMessage = {
+          user: user.name,
+          text: "Correctly guessed!",
+          roomId,
+          highlight: isCorrectGuess,
+        };
+        socket.emit("sendMessage", newMessage);
+      } else {
+        const newMessage = {
+          user: user.name,
+          text: isCorrectGuess ? "Correctly guessed!" : message,
+          roomId,
+          highlight: isCorrectGuess,
+        };
+        socket.emit("sendMessage", newMessage);
+      }
+      setMessage("");
+    } catch (error) {
+      console.error("Error sending message:", error);
+      setMessage("");
     }
-    setMessage("");
   };
 
   const handleWordClick = (word) => {
-    setChosenWord(word);
-    setRandomWords([]);
-    socket.emit("wordChosen", { roomId, word });
+    try {
+      if (socket && socket.connected) {
+        setChosenWord(word);
+        setRandomWords([]);
+        socket.emit("wordChosen", { roomId, word });
+      }
+    } catch (error) {
+      console.error("Error choosing word:", error);
+    }
   };
 
   useEffect(() => {
@@ -268,7 +579,15 @@ export default function RoomPage({ socket, user }) {
                 <span className="sr-only">Eraser tool</span>
               </ToggleGroupItem>
             </ToggleGroup>
-            <Button variant="ghost" size="icon" onClick={() => canvasRef.current.resetCanvas()}>
+            <Button variant="ghost" size="icon" onClick={() => {
+              try {
+                if (canvasRef.current && canvasRef.current.resetCanvas) {
+                  canvasRef.current.resetCanvas();
+                }
+              } catch (error) {
+                console.error("Error clearing canvas:", error);
+              }
+            }}>
               <TrashIcon className="w-5 h-5" />
               <span className="sr-only">Clear canvas</span>
             </Button>

@@ -19,7 +19,42 @@ const socket = io(server, connectionOptions);
 
 export default function App() {
   const [user, setUser] = useState(null);
-  // const [roomID, setRoomID] = useState("");
+  const [socketConnected, setSocketConnected] = useState(false);
+
+  useEffect(() => {
+    // Handle socket connection events
+    socket.on("connect", () => {
+      console.log("Connected to server");
+      setSocketConnected(true);
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.log("Disconnected from server:", reason);
+      setSocketConnected(false);
+    });
+
+    socket.on("connect_error", (error) => {
+      console.error("Connection error:", error);
+      setSocketConnected(false);
+    });
+
+    socket.on("reconnect", (attemptNumber) => {
+      console.log("Reconnected after", attemptNumber, "attempts");
+      setSocketConnected(true);
+    });
+
+    socket.on("reconnect_error", (error) => {
+      console.error("Reconnection error:", error);
+    });
+
+    return () => {
+      socket.off("connect");
+      socket.off("disconnect");
+      socket.off("connect_error");
+      socket.off("reconnect");
+      socket.off("reconnect_error");
+    };
+  }, []);
 
   const generateId = () => {
     const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -41,10 +76,17 @@ export default function App() {
   // }, []);
 
   return (
-    <Routes>
-      <Route path="/" element={<CreateRoomForm setUser={setUser} uid={generateId} />} />
-      <Route path="/:roomId" element={<RoomPage socket={socket} user={user} />} />
-      <Route path="/join" element={<JoinRoomForm setUser={setUser} uid={generateId} />} />
-    </Routes>
+    <div>
+      {!socketConnected && (
+        <div className="fixed top-0 left-0 right-0 bg-red-500 text-white text-center py-2 z-50">
+          Connecting to server...
+        </div>
+      )}
+      <Routes>
+        <Route path="/" element={<CreateRoomForm setUser={setUser} uid={generateId} />} />
+        <Route path="/:roomId" element={<RoomPage socket={socket} user={user} />} />
+        <Route path="/join" element={<JoinRoomForm setUser={setUser} uid={generateId} />} />
+      </Routes>
+    </div>
   );
 }

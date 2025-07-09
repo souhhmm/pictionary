@@ -17,42 +17,59 @@ const Canvas = forwardRef(({ tool, color, socket, user, isHost }, ref) => { //fo
 
   useImperativeHandle(ref, () => ({
     resetCanvas() {
-      Paper.project.clear();
-      const context = canvasRef.current.getContext("2d");
-      context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-      setCanvasImage(null);
-      // Clear drawing command queue on reset
-      drawingCommandsQueue.current = [];
-      currentStroke.current = null;
-      if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current);
-        syncTimeoutRef.current = null;
+      try {
+        if (Paper.project) {
+          Paper.project.clear();
+        }
+        
+        if (canvasRef.current) {
+          const context = canvasRef.current.getContext("2d");
+          if (context) {
+            context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          }
+        }
+        
+        setCanvasImage(null);
+        // Clear drawing command queue on reset
+        drawingCommandsQueue.current = [];
+        currentStroke.current = null;
+        
+        if (syncTimeoutRef.current) {
+          clearTimeout(syncTimeoutRef.current);
+          syncTimeoutRef.current = null;
+        }
+      } catch (error) {
+        console.error("Error resetting canvas:", error);
       }
     },
   }));
 
   // Send drawing commands instead of full canvas images
   const sendDrawingCommands = useCallback((commands) => {
-    if (!isHost || !socket.connected || !commands.length) return;
+    try {
+      if (!isHost || !socket || !socket.connected || !commands.length) return;
 
-    const now = Date.now();
-    if (now - lastSyncTime.current < COMMAND_SYNC_INTERVAL) {
-      // Queue commands if sending too frequently
-      drawingCommandsQueue.current.push(...commands);
-      return;
+      const now = Date.now();
+      if (now - lastSyncTime.current < COMMAND_SYNC_INTERVAL) {
+        // Queue commands if sending too frequently
+        drawingCommandsQueue.current.push(...commands);
+        return;
+      }
+
+      lastSyncTime.current = now;
+      
+      // Include queued commands
+      const allCommands = [...drawingCommandsQueue.current, ...commands];
+      drawingCommandsQueue.current = [];
+
+      socket.emit("canvasDrawing", { 
+        roomId: user.roomId, 
+        drawingCommands: allCommands,
+        timestamp: now
+      });
+    } catch (error) {
+      console.error("Error sending drawing commands:", error);
     }
-
-    lastSyncTime.current = now;
-    
-    // Include queued commands
-    const allCommands = [...drawingCommandsQueue.current, ...commands];
-    drawingCommandsQueue.current = [];
-
-    socket.emit("canvasDrawing", { 
-      roomId: user.roomId, 
-      drawingCommands: allCommands,
-      timestamp: now
-    });
   }, [isHost, socket, user.roomId]);
 
   // Batched sync for accumulated drawing commands
@@ -69,10 +86,14 @@ const Canvas = forwardRef(({ tool, color, socket, user, isHost }, ref) => { //fo
 
   // Full canvas sync for initial state or major changes
   const fullCanvasSync = useCallback(() => {
-    if (!isHost || !canvasRef.current || !socket.connected) return;
-    
-    const imageData = canvasRef.current.toDataURL('image/png', 0.8);
-    socket.emit("canvasFullSync", { roomId: user.roomId, imageData });
+    try {
+      if (!isHost || !canvasRef.current || !socket || !socket.connected) return;
+      
+      const imageData = canvasRef.current.toDataURL('image/png', 0.8);
+      socket.emit("canvasFullSync", { roomId: user.roomId, imageData });
+    } catch (error) {
+      console.error("Error during full canvas sync:", error);
+    }
   }, [isHost, socket, user.roomId]);
 
   // Convert Paper.js drawing events to command objects
@@ -88,63 +109,82 @@ const Canvas = forwardRef(({ tool, color, socket, user, isHost }, ref) => { //fo
 
   // Apply received drawing commands to canvas
   const applyDrawingCommands = useCallback((commands) => {
-    commands.forEach(command => {
-      const { type, data, tool: cmdTool, color: cmdColor } = command;
+    try {
+      if (!commands || !Array.isArray(commands)) return;
       
-      switch (type) {
-        case 'start':
-          // Create new path
-          const newPath = new Paper.Path();
-          newPath.strokeColor = cmdColor;
-          newPath.strokeWidth = 3;
-          if (cmdTool === 'pencil') {
-            newPath.strokeCap = "round";
-            newPath.strokeJoin = "round";
-          }
-          newPath.add(new Paper.Point(data.point.x, data.point.y));
-          newPath.commandId = data.commandId;
-          break;
+      commands.forEach(command => {
+        try {
+          const { type, data, tool: cmdTool, color: cmdColor } = command;
           
-        case 'continue':
-          // Add point to existing path
-          const existingPath = Paper.project.activeLayer.children.find(
-            item => item.commandId === data.commandId
-          );
-          if (existingPath) {
-            existingPath.add(new Paper.Point(data.point.x, data.point.y));
-            if (cmdTool === 'pencil') {
-              existingPath.smooth();
-            }
-          }
-          break;
+          if (!type || !data) return;
           
-        case 'end':
-          // Finalize path
-          const finalPath = Paper.project.activeLayer.children.find(
-            item => item.commandId === data.commandId
-          );
-          if (finalPath && data.point) {
-            finalPath.add(new Paper.Point(data.point.x, data.point.y));
+          switch (type) {
+            case 'start':
+              // Create new path
+              const newPath = new Paper.Path();
+              newPath.strokeColor = cmdColor || '#000000';
+              newPath.strokeWidth = 3;
+              if (cmdTool === 'pencil') {
+                newPath.strokeCap = "round";
+                newPath.strokeJoin = "round";
+              }
+              if (data.point) {
+                newPath.add(new Paper.Point(data.point.x, data.point.y));
+              }
+              newPath.commandId = data.commandId;
+              break;
+              
+            case 'continue':
+              // Add point to existing path
+              const existingPath = Paper.project.activeLayer.children.find(
+                item => item.commandId === data.commandId
+              );
+              if (existingPath && data.point) {
+                existingPath.add(new Paper.Point(data.point.x, data.point.y));
+                if (cmdTool === 'pencil') {
+                  existingPath.smooth();
+                }
+              }
+              break;
+              
+            case 'end':
+              // Finalize path
+              const finalPath = Paper.project.activeLayer.children.find(
+                item => item.commandId === data.commandId
+              );
+              if (finalPath && data.point) {
+                finalPath.add(new Paper.Point(data.point.x, data.point.y));
+              }
+              break;
+              
+            case 'erase':
+              // Handle eraser commands
+              if (data.point) {
+                const erasePoint = new Paper.Point(data.point.x, data.point.y);
+                const hitResults = Paper.project.hitTestAll(erasePoint, {
+                  stroke: true,
+                  fill: true,
+                  tolerance: 25
+                });
+                hitResults.forEach(hitResult => {
+                  if (hitResult.item) {
+                    hitResult.item.remove();
+                  }
+                });
+              }
+              break;
           }
-          break;
-          
-        case 'erase':
-          // Handle eraser commands
-          const erasePoint = new Paper.Point(data.point.x, data.point.y);
-          const hitResults = Paper.project.hitTestAll(erasePoint, {
-            stroke: true,
-            fill: true,
-            tolerance: 25
-          });
-          hitResults.forEach(hitResult => {
-            if (hitResult.item) {
-              hitResult.item.remove();
-            }
-          });
-          break;
+        } catch (cmdError) {
+          console.error("Error applying individual drawing command:", cmdError);
+        }
+      });
+      
+      if (Paper.view) {
+        Paper.view.draw();
       }
-    });
-    Paper.view.draw();
+    } catch (error) {
+      console.error("Error applying drawing commands:", error);
+    }
   }, []);
 
   useEffect(() => {
@@ -154,50 +194,74 @@ const Canvas = forwardRef(({ tool, color, socket, user, isHost }, ref) => { //fo
     if (!isHost) {
       // Listen for optimized drawing commands
       socket.on("canvasDrawing", (data) => {
-        const { drawingCommands } = data;
-        if (drawingCommands && drawingCommands.length > 0) {
-          applyDrawingCommands(drawingCommands);
+        try {
+          const { drawingCommands } = data;
+          if (drawingCommands && drawingCommands.length > 0) {
+            applyDrawingCommands(drawingCommands);
+          }
+        } catch (error) {
+          console.error("Error processing canvas drawing:", error);
         }
       });
 
       // Listen for full canvas sync as fallback
       socket.on("canvasFullSync", (data) => {
-        setCanvasImage(data.imageData);
+        try {
+          if (data && data.imageData) {
+            setCanvasImage(data.imageData);
+          }
+        } catch (error) {
+          console.error("Error processing canvas full sync:", error);
+        }
       });
     }
 
     // Listen for reset canvas events from server
     socket.on("resetCanvas", () => {
-      Paper.project.clear();
-      if (canvasRef.current) {
-        const context = canvasRef.current.getContext("2d");
-        context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-      }
-      setCanvasImage(null);
-      // Clear drawing command queue on reset
-      drawingCommandsQueue.current = [];
-      currentStroke.current = null;
-      if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current);
-        syncTimeoutRef.current = null;
+      try {
+        Paper.project.clear();
+        if (canvasRef.current) {
+          const context = canvasRef.current.getContext("2d");
+          if (context) {
+            context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          }
+        }
+        setCanvasImage(null);
+        // Clear drawing command queue on reset
+        drawingCommandsQueue.current = [];
+        currentStroke.current = null;
+        if (syncTimeoutRef.current) {
+          clearTimeout(syncTimeoutRef.current);
+          syncTimeoutRef.current = null;
+        }
+      } catch (error) {
+        console.error("Error resetting canvas:", error);
       }
     });
 
     // Periodic full sync for reliability
     const fullSyncInterval = setInterval(() => {
-      if (isHost) {
-        fullCanvasSync();
+      try {
+        if (isHost && socket && socket.connected) {
+          fullCanvasSync();
+        }
+      } catch (error) {
+        console.error("Error during periodic full sync:", error);
       }
     }, FULL_SYNC_INTERVAL);
 
     return () => {
-      Paper.view.onFrame = null;
-      socket.off("canvasDrawing");
-      socket.off("canvasFullSync");
-      socket.off("resetCanvas");
-      clearInterval(fullSyncInterval);
-      if (syncTimeoutRef.current) {
-        clearTimeout(syncTimeoutRef.current);
+      try {
+        Paper.view.onFrame = null;
+        socket.off("canvasDrawing");
+        socket.off("canvasFullSync");
+        socket.off("resetCanvas");
+        clearInterval(fullSyncInterval);
+        if (syncTimeoutRef.current) {
+          clearTimeout(syncTimeoutRef.current);
+        }
+      } catch (error) {
+        console.error("Error during canvas cleanup:", error);
       }
     };
   }, [isHost, socket, user.roomId, applyDrawingCommands, fullCanvasSync]);
