@@ -6,8 +6,8 @@ import io from "socket.io-client";
 import CreateRoomForm from "./components/CreateRoomForm";
 import JoinRoomForm from "./components/JoinRoomForm";
 
-// const server = import.meta.env.VITE_SERVER_URL;
-const server = 'http://localhost:5000/';
+const server = import.meta.env.VITE_SERVER_URL;
+// const server = 'http://localhost:5000/';
 const connectionOptions = {
   "force new connection": true,
   reconnectionAttempts: "Infinity",
