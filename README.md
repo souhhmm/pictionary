@@ -2,7 +2,7 @@
 
 A real-time multiplayer drawing and guessing game inspired by [skribbl.io](https://skribbl.io/).
 
-### Installation
+## Installation
 
 1. Clone the repository:
    ```bash
@@ -28,7 +28,7 @@ A real-time multiplayer drawing and guessing game inspired by [skribbl.io](https
    echo "VITE_SERVER_URL=http://localhost:5000" > .env
    ```
 
-### Running Locally
+## Running Locally
 
 1. Start the backend server:
    ```bash
