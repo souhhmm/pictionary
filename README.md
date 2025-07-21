@@ -18,7 +18,7 @@ A real-time multiplayer drawing and guessing game inspired by [skribbl.io](https
 
 3. Install frontend dependencies:
    ```bash
-   cd ../frontend
+   cd frontend
    npm install
    ```
 
